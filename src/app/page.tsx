@@ -25,6 +25,7 @@ interface Stats {
     byState: { opened: number; closed: number };
     byProduct: { market: number; cared: number };
     resolutionRate: number;
+    avgResolutionTimeMin: number;
   };
   change: { total: number; market: number; cared: number };
   cared: {
@@ -343,64 +344,72 @@ export default function Dashboard() {
       </div>
 
       {/* 응답률 & 해결률 - 상단 대형 카드 */}
-      <div className="grid grid-cols-3 gap-6 mb-6">
-        <div className="bg-gradient-to-r from-emerald-500 to-teal-600 rounded-2xl p-6 shadow-xl">
+      <div className="grid grid-cols-4 gap-4 mb-6">
+        <div className="bg-gradient-to-r from-emerald-500 to-teal-600 rounded-2xl p-5 shadow-xl">
           <div className="flex items-center justify-between">
             <div className="flex-1">
               <div className="flex items-center gap-3">
-                <p className="text-white text-lg font-medium">{activeTab !== 'weekly' ? '오늘 응답률' : '주간 응답률'}</p>
+                <p className="text-white text-base font-medium">{activeTab !== 'weekly' ? '오늘 응답률' : '주간 응답률'}</p>
               </div>
-              <p className="text-white text-5xl font-bold mt-2">
+              <p className="text-white text-4xl font-bold mt-2">
                 {loading ? '-' : `${stats?.today.responseRate || 0}%`}
               </p>
               <p className="text-white/70 text-sm mt-2">
                 {loading ? '' : `${stats?.today.respondedCount || 0}건 응답 / ${stats?.today.total || 0}건 접수`}
               </p>
-              <p className="text-white/50 text-xs mt-3 border-t border-white/20 pt-2">
-                = (응답을 보낸 문의 건수 ÷ 전체 접수된 문의) × 100
-              </p>
             </div>
-            <div className="text-6xl opacity-30">📞</div>
+            <div className="text-5xl opacity-30">📞</div>
           </div>
         </div>
         
-        <div className="bg-gradient-to-r from-indigo-500 to-purple-600 rounded-2xl p-6 shadow-xl">
+        <div className="bg-gradient-to-r from-indigo-500 to-purple-600 rounded-2xl p-5 shadow-xl">
           <div className="flex items-center justify-between">
             <div className="flex-1">
               <div className="flex items-center gap-3">
-                <p className="text-white text-lg font-medium">{activeTab !== 'weekly' ? '어제 해결률' : '전주 해결률'}</p>
+                <p className="text-white text-base font-medium">{activeTab !== 'weekly' ? '어제 해결률' : '전주 해결률'}</p>
               </div>
-              <p className="text-white text-5xl font-bold mt-2">
+              <p className="text-white text-4xl font-bold mt-2">
                 {loading ? '-' : `${stats?.yesterday.resolutionRate || 0}%`}
               </p>
               <p className="text-white/70 text-sm mt-2">
                 {loading ? '' : `${stats?.yesterday.byState.closed || 0}건 해결 / ${stats?.yesterday.total || 0}건 접수`}
               </p>
-              <p className="text-white/50 text-xs mt-3 border-t border-white/20 pt-2">
-                = (어제 최종 종결된 문의 ÷ 어제 접수된 문의) × 100
-              </p>
             </div>
-            <div className="text-6xl opacity-30">📊</div>
+            <div className="text-5xl opacity-30">📊</div>
           </div>
         </div>
         
-        <div className="bg-gradient-to-r from-orange-500 to-rose-600 rounded-2xl p-6 shadow-xl">
+        <div className="bg-gradient-to-r from-cyan-500 to-blue-600 rounded-2xl p-5 shadow-xl">
           <div className="flex items-center justify-between">
             <div className="flex-1">
               <div className="flex items-center gap-3">
-                <p className="text-white text-lg font-medium">{activeTab !== 'weekly' ? '오늘 해결률' : '주간 해결률'}</p>
+                <p className="text-white text-base font-medium">{activeTab !== 'weekly' ? '어제 평균해결시간' : '전주 평균해결시간'}</p>
               </div>
-              <p className="text-white text-5xl font-bold mt-2">
+              <p className="text-white text-4xl font-bold mt-2">
+                {loading ? '-' : `${(stats?.yesterday.avgResolutionTimeMin || 0).toFixed(0)}분`}
+              </p>
+              <p className="text-white/70 text-sm mt-2">
+                {loading ? '' : `≈ ${((stats?.yesterday.avgResolutionTimeMin || 0) / 60).toFixed(1)}시간`}
+              </p>
+            </div>
+            <div className="text-5xl opacity-30">⏱️</div>
+          </div>
+        </div>
+        
+        <div className="bg-gradient-to-r from-orange-500 to-rose-600 rounded-2xl p-5 shadow-xl">
+          <div className="flex items-center justify-between">
+            <div className="flex-1">
+              <div className="flex items-center gap-3">
+                <p className="text-white text-base font-medium">{activeTab !== 'weekly' ? '오늘 해결률' : '주간 해결률'}</p>
+              </div>
+              <p className="text-white text-4xl font-bold mt-2">
                 {loading ? '-' : `${stats?.today.resolutionRate || 0}%`}
               </p>
               <p className="text-white/70 text-sm mt-2">
                 {loading ? '' : `${stats?.today.byState.closed || 0}건 해결 / ${stats?.today.total || 0}건 접수`}
               </p>
-              <p className="text-white/50 text-xs mt-3 border-t border-white/20 pt-2">
-                = (최종 종결된 문의 건수 ÷ 전체 접수된 문의) × 100
-              </p>
             </div>
-            <div className="text-6xl opacity-30">✅</div>
+            <div className="text-5xl opacity-30">✅</div>
           </div>
         </div>
       </div>
@@ -463,10 +472,10 @@ export default function Dashboard() {
         {/* Center Content */}
         <div className="col-span-8 space-y-4">
           {/* Top Stats Row */}
-          <div className="grid grid-cols-6 gap-3">
+          <div className="grid grid-cols-5 gap-4">
             <div className="bg-white rounded-xl p-4 shadow-lg">
               <p className="text-gray-500 text-sm">{activeTab !== 'weekly' ? '오늘 문의건수 / 어제' : '주간 문의건수 / 전주'}</p>
-              <p className="text-2xl font-bold">
+              <p className="text-3xl font-bold">
                 <span className="text-blue-600">{loading ? '-' : stats?.today.total || 0}</span>
                 <span className="text-gray-400 mx-1">/</span>
                 <span className="text-gray-500">{loading ? '-' : stats?.yesterday.total || 0}</span>
@@ -474,19 +483,19 @@ export default function Dashboard() {
             </div>
             <div className="bg-white rounded-xl p-4 shadow-lg">
               <p className="text-gray-500 text-sm">{activeTab !== 'weekly' ? '오늘 문의 응대중' : '문의 응대중'}</p>
-              <p className="text-2xl font-bold text-orange-500">
+              <p className="text-3xl font-bold text-orange-500">
                 {loading ? '-' : stats?.today.byState.opened || 0}
               </p>
             </div>
             <div className="bg-white rounded-xl p-4 shadow-lg">
               <p className="text-gray-500 text-sm">{activeTab !== 'weekly' ? '오늘 문의종료' : '주간 문의 종료'}</p>
-              <p className="text-2xl font-bold text-green-600">
+              <p className="text-3xl font-bold text-green-600">
                 {loading ? '-' : stats?.today.byState.closed || 0}
               </p>
             </div>
             <div className="bg-white rounded-xl p-4 shadow-lg">
               <p className="text-gray-500 text-sm">AI 응답건수/응답률</p>
-              <p className="text-2xl font-bold text-purple-600">
+              <p className="text-3xl font-bold text-purple-600">
                 {loading ? '-' : `${stats?.today.aiCount || 0}건`}
               </p>
               <p className="text-sm text-purple-400 mt-1">
@@ -495,14 +504,8 @@ export default function Dashboard() {
             </div>
             <div className="bg-white rounded-xl p-4 shadow-lg">
               <p className="text-gray-500 text-sm">{activeTab !== 'weekly' ? '오늘 평균응답시간' : '주간 평균 응답시간'}</p>
-              <p className="text-2xl font-bold text-cyan-600">
+              <p className="text-3xl font-bold text-cyan-600">
                 {loading ? '-' : `${(stats?.today.avgFirstResponseTimeMin || 0).toFixed(1)}분`}
-              </p>
-            </div>
-            <div className="bg-white rounded-xl p-4 shadow-lg">
-              <p className="text-gray-500 text-sm">{activeTab !== 'weekly' ? '오늘 평균해결시간' : '주간 평균 해결시간'}</p>
-              <p className="text-2xl font-bold text-rose-600">
-                {loading ? '-' : `${(stats?.today.avgResolutionTimeMin || 0).toFixed(1)}분`}
               </p>
             </div>
           </div>
