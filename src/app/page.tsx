@@ -233,28 +233,73 @@ export default function Dashboard() {
                   <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500"></div>
                   <span className="ml-2 text-gray-500">데이터 로딩 중...</span>
                 </div>
-              ) : (
-                <div className="space-y-3">
-                  {Object.entries(stats?.today.byManager || {}).map(([name, count]) => {
-                    const total = Object.values(stats?.today.byManager || {}).reduce((a, b) => a + b, 0);
-                    const pct = total > 0 ? (count / total) * 100 : 0;
-                    return (
-                      <div key={name}>
-                        <div className="flex justify-between text-sm mb-1">
-                          <span className="font-medium">{name}</span>
-                          <span className="text-gray-500">{count}건 ({pct.toFixed(0)}%)</span>
-                        </div>
-                        <div className="w-full bg-gray-200 rounded-full h-2">
-                          <div
-                            className="bg-gradient-to-r from-blue-400 to-purple-500 h-2 rounded-full"
-                            style={{ width: `${pct}%` }}
+              ) : (() => {
+                const managers = Object.entries(stats?.today.byManager || {});
+                const total = managers.reduce((sum, [, count]) => sum + count, 0);
+                const colors = ['#3B82F6', '#8B5CF6', '#EC4899', '#F59E0B', '#10B981'];
+                
+                // 파이차트 계산
+                let cumulative = 0;
+                const slices = managers.map(([name, count], i) => {
+                  const pct = total > 0 ? (count / total) * 100 : 0;
+                  const startAngle = cumulative * 3.6; // 360 / 100
+                  cumulative += pct;
+                  const endAngle = cumulative * 3.6;
+                  return { name, count, pct, startAngle, endAngle, color: colors[i % colors.length] };
+                });
+
+                // SVG 파이차트 경로 생성
+                const createArc = (startAngle: number, endAngle: number, radius: number) => {
+                  const start = {
+                    x: 60 + radius * Math.cos((startAngle - 90) * Math.PI / 180),
+                    y: 60 + radius * Math.sin((startAngle - 90) * Math.PI / 180)
+                  };
+                  const end = {
+                    x: 60 + radius * Math.cos((endAngle - 90) * Math.PI / 180),
+                    y: 60 + radius * Math.sin((endAngle - 90) * Math.PI / 180)
+                  };
+                  const largeArc = endAngle - startAngle > 180 ? 1 : 0;
+                  return `M 60 60 L ${start.x} ${start.y} A ${radius} ${radius} 0 ${largeArc} 1 ${end.x} ${end.y} Z`;
+                };
+
+                return (
+                  <div className="flex items-center gap-4">
+                    {/* 파이차트 */}
+                    <svg width="120" height="120" viewBox="0 0 120 120">
+                      {slices.map((slice, i) => (
+                        <path
+                          key={i}
+                          d={createArc(slice.startAngle, slice.endAngle, 50)}
+                          fill={slice.color}
+                          stroke="white"
+                          strokeWidth="2"
+                        />
+                      ))}
+                      {/* 중앙 흰색 원 (도넛 효과) */}
+                      <circle cx="60" cy="60" r="25" fill="white" />
+                      <text x="60" y="65" textAnchor="middle" className="text-sm font-bold fill-gray-700">
+                        {total}건
+                      </text>
+                    </svg>
+                    
+                    {/* 범례 */}
+                    <div className="flex-1 space-y-2">
+                      {slices.map((slice, i) => (
+                        <div key={i} className="flex items-center gap-2">
+                          <div 
+                            className="w-3 h-3 rounded-full flex-shrink-0" 
+                            style={{ backgroundColor: slice.color }}
                           />
+                          <span className="text-gray-800 font-medium text-sm">{slice.name}</span>
+                          <span className="text-gray-500 text-sm ml-auto">
+                            {slice.count}건 ({slice.pct.toFixed(0)}%)
+                          </span>
                         </div>
-                      </div>
-                    );
-                  })}
-                </div>
-              )}
+                      ))}
+                    </div>
+                  </div>
+                );
+              })()}
             </div>
           </div>
 
