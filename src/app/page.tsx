@@ -12,6 +12,7 @@ interface Stats {
     byTag: Record<string, number>;
     avgResponseTimeMin: number;
     avgFirstResponseTimeMin: number;
+    aiCount: number;
     aiRate: number;
   };
   yesterday: {
@@ -24,6 +25,7 @@ interface Stats {
       total: number;
       byState: { opened: number; closed: number };
       byTag: Record<string, number>;
+      aiCount: number;
       aiRate: number;
     };
     topTags: { tag: string; count: number }[];
@@ -33,6 +35,7 @@ interface Stats {
       total: number;
       byState: { opened: number; closed: number };
       byTag: Record<string, number>;
+      aiCount: number;
       aiRate: number;
     };
     topTags: { tag: string; count: number }[];
@@ -162,7 +165,10 @@ export default function Dashboard() {
             <div className="bg-white rounded-xl p-4 shadow-lg">
               <p className="text-gray-500 text-sm">AI 응답건수/응답률</p>
               <p className="text-3xl font-bold text-purple-600">
-                {loading ? '-' : `${stats?.today.aiRate || 0}%`}
+                {loading ? '-' : `${stats?.today.aiCount || 0}건`}
+              </p>
+              <p className="text-sm text-purple-400 mt-1">
+                {loading ? '' : `(${stats?.today.aiRate || 0}%)`}
               </p>
             </div>
             <div className="bg-white rounded-xl p-4 shadow-lg">

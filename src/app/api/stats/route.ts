@@ -115,6 +115,7 @@ function calculateStats(chats: Chat[]) {
     byTag: {} as Record<string, number>,
     avgResponseTimeMin: 0,
     avgFirstResponseTimeMin: 0,
+    aiCount: 0,
     aiRate: 0,
   }
 
@@ -122,7 +123,6 @@ function calculateStats(chats: Chat[]) {
   let responseCount = 0
   let totalFirstResponse = 0
   let firstResponseCount = 0
-  let aiHandled = 0
 
   for (const chat of chats) {
     // 상태
@@ -160,13 +160,15 @@ function calculateStats(chats: Chat[]) {
       firstResponseCount++
     }
 
-    // AI 처리
-    if (chat.source?.workflow) aiHandled++
+    // AI 처리: 종료됐는데 담당자가 없는 경우
+    if (chat.state === 'closed' && !chat.assigneeId) {
+      stats.aiCount++
+    }
   }
 
   stats.avgResponseTimeMin = responseCount > 0 ? totalResponseTime / responseCount : 0
   stats.avgFirstResponseTimeMin = firstResponseCount > 0 ? totalFirstResponse / firstResponseCount : 0
-  stats.aiRate = chats.length > 0 ? (aiHandled / chats.length) * 100 : 0
+  stats.aiRate = chats.length > 0 ? Math.round((stats.aiCount / chats.length) * 1000) / 10 : 0
 
   return stats
 }
