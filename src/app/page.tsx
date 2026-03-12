@@ -107,11 +107,20 @@ export default function Dashboard() {
       {/* Header */}
       <div className="mb-6">
         <div className="flex items-center justify-between">
-          <h1 className="text-2xl font-bold text-white flex items-center gap-2">
-            <span className="text-3xl">■</span>
-            차란 CX 실시간 대시보드 
-            <span className="text-yellow-300">({today})</span>
-          </h1>
+          <div className="flex items-center gap-4">
+            <h1 className="text-2xl font-bold text-white flex items-center gap-2">
+              <span className="text-3xl">■</span>
+              차란 CX 실시간 대시보드 
+              <span className="text-yellow-300">({today})</span>
+            </h1>
+            {/* CX 팀원 아바타 */}
+            <div className="flex items-center gap-1 ml-4">
+              <img src="/team/joy.png" alt="Joy" className="w-8 h-8 rounded-full object-cover border-2 border-white/50" title="Joy" />
+              <img src="/team/sara.png" alt="Sara" className="w-8 h-8 rounded-full object-cover border-2 border-white/50" title="Sara" />
+              <img src="/team/sia.png" alt="Sia" className="w-8 h-8 rounded-full object-cover border-2 border-white/50" title="Sia" />
+              <img src="/team/jacky.png" alt="Jacky" className="w-8 h-8 rounded-full object-cover border-2 border-white/50" title="Jacky" />
+            </div>
+          </div>
           <div className="text-white/80 text-sm">
             {lastUpdated && (
               <span>마지막 업데이트: {lastUpdated} · 20분마다 자동 갱신</span>
