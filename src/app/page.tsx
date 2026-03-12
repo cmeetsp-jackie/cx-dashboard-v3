@@ -90,14 +90,18 @@ function getCompletedWeeks(): { id: string; label: string; start: string; end: s
   return weeks;
 }
 
-// 현재 주의 일별 탭 생성 (주 시작일 ~ 어제)
+// 현재 주의 일별 탭 생성 (마지막 완료 주간 다음날 ~ 어제)
 function getPastDailyTabs(): { date: string; label: string }[] {
   const kstNow = getKSTDate();
   const today = formatDate(kstNow);
-  const weekStart = getWeekStart(kstNow);
   const tabs = [];
   
-  const current = new Date(weekStart);
+  // 마지막 완료 주간 다음날부터 시작 (Week 1이 3/10까지이므로 3/11부터)
+  const lastCompletedWeekEnd = '2026-03-10';
+  const startDate = new Date(lastCompletedWeekEnd);
+  startDate.setUTCDate(startDate.getUTCDate() + 1);  // 3/11
+  
+  const current = new Date(startDate);
   while (formatDate(current) < today) {
     const dateStr = formatDate(current);
     tabs.push({ date: dateStr, label: formatDateLabel(dateStr) });
@@ -226,7 +230,7 @@ export default function Dashboard() {
           <div className="flex items-center gap-4">
             <h1 className="text-2xl font-bold text-white flex items-center gap-2">
               <span className="text-3xl">■</span>
-              차란 CX 대시보드
+              차란 CX 실시간 대시보드 ({today})
             </h1>
             {/* CX 팀원 아바타 */}
             <div className="flex items-center gap-3 ml-4">
