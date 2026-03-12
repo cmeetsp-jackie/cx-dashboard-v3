@@ -142,9 +142,10 @@ function calculateStats(chats: Chat[]) {
       stats.byManager[name] = (stats.byManager[name] || 0) + 1
     }
 
-    // 시간대
-    const hour = new Date(chat.createdAt).getHours()
-    stats.byHour[hour] = (stats.byHour[hour] || 0) + 1
+    // 시간대 (KST 기준)
+    const chatDate = new Date(chat.createdAt)
+    const kstHour = (chatDate.getUTCHours() + 9) % 24  // UTC+9
+    stats.byHour[kstHour] = (stats.byHour[kstHour] || 0) + 1
 
     // 태그
     for (const tag of chat.tags || []) {
