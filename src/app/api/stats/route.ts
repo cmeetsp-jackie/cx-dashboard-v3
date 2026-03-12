@@ -188,6 +188,7 @@ function calculateStats(chats: Chat[]) {
     byProduct: { market: 0, cared: 0 },
     byManager: {} as Record<string, number>,
     byHour: {} as Record<number, number>,
+    byDate: {} as Record<string, number>,  // 일별 문의량 (주간용)
     byTag: {} as Record<string, number>,
     avgResponseTimeMin: 0,
     avgFirstResponseTimeMin: 0,
@@ -223,6 +224,11 @@ function calculateStats(chats: Chat[]) {
     const chatDate = new Date(chat.createdAt)
     const kstHour = (chatDate.getUTCHours() + 9) % 24  // UTC+9
     stats.byHour[kstHour] = (stats.byHour[kstHour] || 0) + 1
+    
+    // 일별 (KST 기준) - 주간 차트용
+    const kstDate = new Date(chat.createdAt + 9 * 60 * 60 * 1000)
+    const dateKey = kstDate.toISOString().split('T')[0]  // YYYY-MM-DD
+    stats.byDate[dateKey] = (stats.byDate[dateKey] || 0) + 1
 
     // 태그
     for (const tag of chat.tags || []) {

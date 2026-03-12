@@ -9,6 +9,7 @@ interface Stats {
     byProduct: { market: number; cared: number };
     byManager: Record<string, number>;
     byHour: Record<string, number>;
+    byDate: Record<string, number>;
     byTag: Record<string, number>;
     avgResponseTimeMin: number;
     avgFirstResponseTimeMin: number;
@@ -399,54 +400,94 @@ export default function Dashboard() {
           {/* Middle Row - Charts */}
           <div className="grid grid-cols-2 gap-4">
             <div className="bg-white rounded-xl p-4 shadow-lg min-h-[200px]">
-              <h3 className="text-gray-700 font-semibold mb-3">{activeTab === 'daily' ? '오늘 시간대별 대화량' : '주간 daily 대화량'}</h3>
+              <h3 className="text-gray-700 font-semibold mb-3">{activeTab === 'daily' ? '오늘 시간대별 대화량' : '주간 daily 문의량'}</h3>
               {loading ? (
                 <div className="flex items-center justify-center h-32">
                   <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500"></div>
                   <span className="ml-2 text-gray-500">데이터 로딩 중...</span>
                 </div>
-              ) : (() => {
-                const values = Object.values(stats?.today.byHour || {});
-                const max = values.length > 0 ? Math.max(...values.map(v => Number(v))) : 1;
-                const mid = Math.round(max / 2);
-                return (
-                  <div className="relative flex">
-                    {/* Y축 라벨 */}
-                    <div className="flex flex-col justify-between h-[120px] pr-2 text-[10px] text-gray-400 text-right w-8">
-                      <span>{max}건</span>
-                      <span>{mid}건</span>
-                      <span>0건</span>
-                    </div>
-                    {/* 차트 영역 */}
-                    <div className="flex-1">
-                      <div className="flex items-end gap-[2px] h-[120px] border-l border-b border-gray-200">
-                        {Array.from({ length: 24 }, (_, i) => {
-                          const count = stats?.today.byHour[i.toString()] || 0;
-                          const heightPx = max > 0 ? Math.round((count / max) * 120) : 0;
-                          return (
-                            <div key={i} className="flex-1 flex flex-col justify-end items-center h-full">
-                              <div
-                                className="w-full bg-blue-400 rounded-t transition-all"
-                                style={{ height: `${heightPx}px` }}
-                                title={`${i}시: ${count}건`}
-                              />
-                            </div>
-                          );
-                        })}
+              ) : activeTab === 'daily' ? (
+                // Daily: 시간대별 차트
+                (() => {
+                  const values = Object.values(stats?.today.byHour || {});
+                  const max = values.length > 0 ? Math.max(...values.map(v => Number(v))) : 1;
+                  const mid = Math.round(max / 2);
+                  return (
+                    <div className="relative flex">
+                      <div className="flex flex-col justify-between h-[120px] pr-2 text-[10px] text-gray-400 text-right w-8">
+                        <span>{max}건</span>
+                        <span>{mid}건</span>
+                        <span>0건</span>
                       </div>
-                      <div className="flex justify-between mt-1 text-[10px] text-gray-400 pl-1">
-                        <span>0</span>
-                        <span>4</span>
-                        <span>8</span>
-                        <span>12</span>
-                        <span>16</span>
-                        <span>20</span>
-                        <span>24</span>
+                      <div className="flex-1">
+                        <div className="flex items-end gap-[2px] h-[120px] border-l border-b border-gray-200">
+                          {Array.from({ length: 24 }, (_, i) => {
+                            const count = stats?.today.byHour[i.toString()] || 0;
+                            const heightPx = max > 0 ? Math.round((count / max) * 120) : 0;
+                            return (
+                              <div key={i} className="flex-1 flex flex-col justify-end items-center h-full">
+                                <div
+                                  className="w-full bg-blue-400 rounded-t transition-all"
+                                  style={{ height: `${heightPx}px` }}
+                                  title={`${i}시: ${count}건`}
+                                />
+                              </div>
+                            );
+                          })}
+                        </div>
+                        <div className="flex justify-between mt-1 text-[10px] text-gray-400 pl-1">
+                          <span>0</span>
+                          <span>4</span>
+                          <span>8</span>
+                          <span>12</span>
+                          <span>16</span>
+                          <span>20</span>
+                          <span>24</span>
+                        </div>
                       </div>
                     </div>
-                  </div>
-                );
-              })()}
+                  );
+                })()
+              ) : (
+                // Weekly: 일별 차트
+                (() => {
+                  const dates = ['2026-03-04', '2026-03-05', '2026-03-06', '2026-03-07', '2026-03-08', '2026-03-09', '2026-03-10'];
+                  const dateLabels = ['3/4', '3/5', '3/6', '3/7', '3/8', '3/9', '3/10'];
+                  const values = dates.map(d => stats?.today.byDate?.[d] || 0);
+                  const max = values.length > 0 ? Math.max(...values) : 1;
+                  const mid = Math.round(max / 2);
+                  return (
+                    <div className="relative flex">
+                      <div className="flex flex-col justify-between h-[120px] pr-2 text-[10px] text-gray-400 text-right w-8">
+                        <span>{max}건</span>
+                        <span>{mid}건</span>
+                        <span>0건</span>
+                      </div>
+                      <div className="flex-1">
+                        <div className="flex items-end gap-2 h-[120px] border-l border-b border-gray-200">
+                          {dates.map((date, i) => {
+                            const count = stats?.today.byDate?.[date] || 0;
+                            const heightPx = max > 0 ? Math.round((count / max) * 120) : 0;
+                            return (
+                              <div key={date} className="flex-1 flex flex-col justify-end items-center h-full">
+                                <div
+                                  className="w-full bg-blue-500 rounded-t transition-all"
+                                  style={{ height: `${heightPx}px` }}
+                                  title={`${dateLabels[i]}: ${count}건`}
+                                />
+                                <span className="text-[9px] text-gray-500 mt-1">{count}</span>
+                              </div>
+                            );
+                          })}
+                        </div>
+                        <div className="flex justify-around mt-1 text-[10px] text-gray-500">
+                          {dateLabels.map(label => <span key={label}>{label}</span>)}
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })()
+              )}
             </div>
             
             <div className="bg-white rounded-xl p-4 shadow-lg min-h-[200px]">
