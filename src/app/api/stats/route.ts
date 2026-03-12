@@ -62,7 +62,7 @@ function getYesterdayRange(): [number, number] {
 
 async function fetchChats(state: string, nextCursor?: string): Promise<{ chats: Chat[]; next?: string }> {
   const url = new URL(`${CHANNELTALK_API}/user-chats`)
-  url.searchParams.set('limit', '100')
+  url.searchParams.set('limit', '500')  // 더 많은 데이터 가져오기
   url.searchParams.set('state', state)
   url.searchParams.set('sortOrder', 'desc')
   if (nextCursor) url.searchParams.set('next', nextCursor)
