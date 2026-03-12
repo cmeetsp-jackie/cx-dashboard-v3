@@ -13,6 +13,7 @@ interface Stats {
     byTag: Record<string, number>;
     avgResponseTimeMin: number;
     avgFirstResponseTimeMin: number;
+    avgResolutionTimeMin: number;
     aiCount: number;
     aiRate: number;
     responseRate: number;
@@ -359,10 +360,10 @@ export default function Dashboard() {
         {/* Center Content */}
         <div className="col-span-8 space-y-4">
           {/* Top Stats Row */}
-          <div className="grid grid-cols-5 gap-4">
+          <div className="grid grid-cols-6 gap-3">
             <div className="bg-white rounded-xl p-4 shadow-lg">
-              <p className="text-gray-500 text-sm">{activeTab === 'daily' ? '오늘 문의건수 / 어제 문의건수' : '주간 문의건수 / 전주 문의건수'}</p>
-              <p className="text-3xl font-bold">
+              <p className="text-gray-500 text-sm">{activeTab === 'daily' ? '오늘 문의건수 / 어제' : '주간 문의건수 / 전주'}</p>
+              <p className="text-2xl font-bold">
                 <span className="text-blue-600">{loading ? '-' : stats?.today.total || 0}</span>
                 <span className="text-gray-400 mx-1">/</span>
                 <span className="text-gray-500">{loading ? '-' : stats?.yesterday.total || 0}</span>
@@ -370,19 +371,19 @@ export default function Dashboard() {
             </div>
             <div className="bg-white rounded-xl p-4 shadow-lg">
               <p className="text-gray-500 text-sm">{activeTab === 'daily' ? '오늘 문의 응대중' : '문의 응대중'}</p>
-              <p className="text-3xl font-bold text-orange-500">
+              <p className="text-2xl font-bold text-orange-500">
                 {loading ? '-' : stats?.today.byState.opened || 0}
               </p>
             </div>
             <div className="bg-white rounded-xl p-4 shadow-lg">
               <p className="text-gray-500 text-sm">{activeTab === 'daily' ? '오늘 문의종료' : '주간 문의 종료'}</p>
-              <p className="text-3xl font-bold text-green-600">
+              <p className="text-2xl font-bold text-green-600">
                 {loading ? '-' : stats?.today.byState.closed || 0}
               </p>
             </div>
             <div className="bg-white rounded-xl p-4 shadow-lg">
               <p className="text-gray-500 text-sm">AI 응답건수/응답률</p>
-              <p className="text-3xl font-bold text-purple-600">
+              <p className="text-2xl font-bold text-purple-600">
                 {loading ? '-' : `${stats?.today.aiCount || 0}건`}
               </p>
               <p className="text-sm text-purple-400 mt-1">
@@ -391,8 +392,14 @@ export default function Dashboard() {
             </div>
             <div className="bg-white rounded-xl p-4 shadow-lg">
               <p className="text-gray-500 text-sm">{activeTab === 'daily' ? '오늘 평균응답시간' : '주간 평균 응답시간'}</p>
-              <p className="text-3xl font-bold text-cyan-600">
+              <p className="text-2xl font-bold text-cyan-600">
                 {loading ? '-' : `${(stats?.today.avgFirstResponseTimeMin || 0).toFixed(1)}분`}
+              </p>
+            </div>
+            <div className="bg-white rounded-xl p-4 shadow-lg">
+              <p className="text-gray-500 text-sm">{activeTab === 'daily' ? '오늘 평균해결시간' : '주간 평균 해결시간'}</p>
+              <p className="text-2xl font-bold text-rose-600">
+                {loading ? '-' : `${(stats?.today.avgResolutionTimeMin || 0).toFixed(1)}분`}
               </p>
             </div>
           </div>

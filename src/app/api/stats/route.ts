@@ -22,6 +22,7 @@ interface Chat {
   avgReplyTime?: number
   firstRepliedAt?: number
   firstOpenedAt?: number
+  resolutionTime?: number  // 해결까지 걸린 시간 (밀리초)
   source?: { workflow?: any }
 }
 
@@ -145,7 +146,8 @@ async function fetchChatsFromClickHouse(startDate: string, endDate: string): Pro
       toUnixTimestamp64Milli(created_at) as createdAt,
       avg_reply_time as avgReplyTime,
       toUnixTimestamp64Milli(first_replied_at) as firstRepliedAt,
-      toUnixTimestamp64Milli(first_opened_at) as firstOpenedAt
+      toUnixTimestamp64Milli(first_opened_at) as firstOpenedAt,
+      resolution_time as resolutionTime
     FROM rawdata_channel_talk.user_chats 
     WHERE created_at >= '${startDate} 00:00:00' 
       AND created_at < '${endDate} 23:59:59'
@@ -178,6 +180,7 @@ async function fetchChatsFromClickHouse(startDate: string, endDate: string): Pro
     avgReplyTime: row.avgReplyTime ? Number(row.avgReplyTime) : undefined,
     firstRepliedAt: row.firstRepliedAt ? Number(row.firstRepliedAt) : undefined,
     firstOpenedAt: row.firstOpenedAt ? Number(row.firstOpenedAt) : undefined,
+    resolutionTime: row.resolutionTime ? Number(row.resolutionTime) : undefined,
   }))
 }
 
@@ -192,6 +195,7 @@ function calculateStats(chats: Chat[]) {
     byTag: {} as Record<string, number>,
     avgResponseTimeMin: 0,
     avgFirstResponseTimeMin: 0,
+    avgResolutionTimeMin: 0,  // 평균 해결시간 (분)
     aiCount: 0,
     aiRate: 0,
     responseRate: 0,      // 응답률: 응답한 건수 / 전체
@@ -204,6 +208,8 @@ function calculateStats(chats: Chat[]) {
   let totalFirstResponse = 0
   let firstResponseCount = 0
   let respondedCount = 0  // 응답을 보낸 건수
+  let totalResolutionTime = 0
+  let resolutionCount = 0
 
   for (const chat of chats) {
     // 상태
@@ -256,10 +262,17 @@ function calculateStats(chats: Chat[]) {
     if (chat.state === 'closed' && !chat.assigneeId) {
       stats.aiCount++
     }
+    
+    // 해결 시간 (종료된 채팅만)
+    if (chat.state === 'closed' && chat.resolutionTime) {
+      totalResolutionTime += chat.resolutionTime / 60000  // ms -> minutes
+      resolutionCount++
+    }
   }
 
   stats.avgResponseTimeMin = responseCount > 0 ? totalResponseTime / responseCount : 0
   stats.avgFirstResponseTimeMin = firstResponseCount > 0 ? totalFirstResponse / firstResponseCount : 0
+  stats.avgResolutionTimeMin = resolutionCount > 0 ? totalResolutionTime / resolutionCount : 0
   stats.aiRate = chats.length > 0 ? Math.round((stats.aiCount / chats.length) * 1000) / 10 : 0
   
   // 응답률: 응답한 건수 / 전체 건수
