@@ -322,13 +322,21 @@ export async function GET(request: Request) {
         fetchChatsFromClickHouse(formatDate(prevWeekStart), formatDate(prevWeekEnd)),
       ])
     } else {
-      // 일간 데이터: Channel Talk API 직접 호출 (실시간성)
-      const [currentStart, currentEnd] = getTodayRange()
-      const [prevStart, prevEnd] = getYesterdayRange()
+      // 일간 데이터: ClickHouse에서 조회 (Channel Talk API 대신)
+      const now = new Date()
+      const kstNow = new Date(now.getTime() + 9 * 60 * 60 * 1000)
+      
+      const formatDateKST = (d: Date) => d.toISOString().split('T')[0]
+      
+      const todayDate = formatDateKST(kstNow)
+      
+      const yesterdayKST = new Date(kstNow)
+      yesterdayKST.setDate(yesterdayKST.getDate() - 1)
+      const yesterdayDate = formatDateKST(yesterdayKST)
       
       ;[todayChats, yesterdayChats] = await Promise.all([
-        fetchAllChats(currentStart, currentEnd),
-        fetchAllChats(prevStart, prevEnd),
+        fetchChatsFromClickHouse(todayDate, todayDate),
+        fetchChatsFromClickHouse(yesterdayDate, yesterdayDate),
       ])
     }
 
