@@ -138,7 +138,7 @@ export default function Dashboard() {
           </div>
         </div>
         
-        <div className="bg-gradient-to-r from-blue-500 to-indigo-600 rounded-2xl p-6 shadow-xl">
+        <div className="bg-gradient-to-r from-orange-500 to-rose-600 rounded-2xl p-6 shadow-xl">
           <div className="flex items-center justify-between">
             <div>
               <p className="text-white/80 text-lg font-medium">해결률</p>
