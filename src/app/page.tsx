@@ -770,8 +770,8 @@ export default function Dashboard() {
 
       {/* 주간 트래커 - 하단 동그라미 7개 */}
       {activeTab !== 'weekly' && (
-        <div className="mt-2 py-4">
-          <h3 className="text-white font-semibold mb-3 text-center text-sm">📅 이번 주 해결률 & 해결시간 트래커 (3/11 ~ 3/17)</h3>
+        <div className="-mt-2 py-2">
+          <h3 className="text-white font-bold mb-3 text-center text-lg">📅 이번 주 해결률 & 해결시간 트래커 (3/11 ~ 3/17)</h3>
           <div className="flex justify-center items-end gap-6">
             {(() => {
               const weekDays = [
