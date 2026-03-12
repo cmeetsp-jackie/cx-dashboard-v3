@@ -14,6 +14,9 @@ interface Stats {
     avgFirstResponseTimeMin: number;
     aiCount: number;
     aiRate: number;
+    responseRate: number;
+    resolutionRate: number;
+    respondedCount: number;
   };
   yesterday: {
     total: number;
@@ -116,6 +119,39 @@ export default function Dashboard() {
           </div>
         </div>
         <p className="text-white/70 text-sm mt-1">채널톡 고객응대 현황 - Daily</p>
+      </div>
+
+      {/* 응답률 & 해결률 - 상단 대형 카드 */}
+      <div className="grid grid-cols-2 gap-6 mb-6">
+        <div className="bg-gradient-to-r from-emerald-500 to-teal-600 rounded-2xl p-6 shadow-xl">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-white/80 text-lg font-medium">응답률</p>
+              <p className="text-white text-5xl font-bold mt-2">
+                {loading ? '-' : `${stats?.today.responseRate || 0}%`}
+              </p>
+              <p className="text-white/70 text-sm mt-2">
+                {loading ? '' : `${stats?.today.respondedCount || 0}건 응답 / ${stats?.today.total || 0}건 접수`}
+              </p>
+            </div>
+            <div className="text-6xl opacity-30">📞</div>
+          </div>
+        </div>
+        
+        <div className="bg-gradient-to-r from-blue-500 to-indigo-600 rounded-2xl p-6 shadow-xl">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-white/80 text-lg font-medium">해결률</p>
+              <p className="text-white text-5xl font-bold mt-2">
+                {loading ? '-' : `${stats?.today.resolutionRate || 0}%`}
+              </p>
+              <p className="text-white/70 text-sm mt-2">
+                {loading ? '' : `${stats?.today.byState.closed || 0}건 해결 / ${stats?.today.total || 0}건 접수`}
+              </p>
+            </div>
+            <div className="text-6xl opacity-30">✅</div>
+          </div>
+        </div>
       </div>
 
       {/* Main Grid */}

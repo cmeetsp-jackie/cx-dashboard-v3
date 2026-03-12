@@ -120,12 +120,16 @@ function calculateStats(chats: Chat[]) {
     avgFirstResponseTimeMin: 0,
     aiCount: 0,
     aiRate: 0,
+    responseRate: 0,      // 응답률: 응답한 건수 / 전체
+    resolutionRate: 0,    // 해결률: 종결된 건수 / 전체
+    respondedCount: 0,    // 응답한 건수
   }
 
   let totalResponseTime = 0
   let responseCount = 0
   let totalFirstResponse = 0
   let firstResponseCount = 0
+  let respondedCount = 0  // 응답을 보낸 건수
 
   for (const chat of chats) {
     // 상태
@@ -164,6 +168,11 @@ function calculateStats(chats: Chat[]) {
       firstResponseCount++
     }
 
+    // 응답 여부: firstRepliedAt이 있으면 응답한 것
+    if (chat.firstRepliedAt) {
+      respondedCount++
+    }
+
     // AI 처리: 종료됐는데 담당자가 없는 경우
     if (chat.state === 'closed' && !chat.assigneeId) {
       stats.aiCount++
@@ -173,6 +182,13 @@ function calculateStats(chats: Chat[]) {
   stats.avgResponseTimeMin = responseCount > 0 ? totalResponseTime / responseCount : 0
   stats.avgFirstResponseTimeMin = firstResponseCount > 0 ? totalFirstResponse / firstResponseCount : 0
   stats.aiRate = chats.length > 0 ? Math.round((stats.aiCount / chats.length) * 1000) / 10 : 0
+  
+  // 응답률: 응답한 건수 / 전체 건수
+  stats.respondedCount = respondedCount
+  stats.responseRate = chats.length > 0 ? Math.round((respondedCount / chats.length) * 1000) / 10 : 0
+  
+  // 해결률: 종결된 건수 / 전체 건수
+  stats.resolutionRate = chats.length > 0 ? Math.round((stats.byState.closed / chats.length) * 1000) / 10 : 0
 
   return stats
 }
