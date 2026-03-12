@@ -115,10 +115,10 @@ export default function Dashboard() {
             </h1>
             {/* CX 팀원 아바타 */}
             <div className="flex items-center gap-2 ml-4">
-              <img src="/team/joy.png" alt="Joy" className="w-12 h-12 rounded-full object-cover border-2 border-white/50" title="Joy" />
-              <img src="/team/sara.png" alt="Sara" className="w-12 h-12 rounded-full object-cover border-2 border-white/50" title="Sara" />
-              <img src="/team/sia.png" alt="Sia" className="w-12 h-12 rounded-full object-cover border-2 border-white/50" title="Sia" />
-              <img src="/team/jacky.png" alt="Jacky" className="w-12 h-12 rounded-full object-cover border-2 border-white/50" title="Jacky" />
+              <img src="/team/joy.png" alt="Joy" className="w-16 h-16 rounded-full object-cover border-2 border-white/50" title="Joy" />
+              <img src="/team/sara.png" alt="Sara" className="w-16 h-16 rounded-full object-cover border-2 border-white/50" title="Sara" />
+              <img src="/team/sia.png" alt="Sia" className="w-16 h-16 rounded-full object-cover border-2 border-white/50" title="Sia" />
+              <img src="/team/jacky.png" alt="Jacky" className="w-16 h-16 rounded-full object-cover border-2 border-white/50" title="Jacky" />
             </div>
           </div>
           <div className="text-white/80 text-sm">
