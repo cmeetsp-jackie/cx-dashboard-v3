@@ -45,22 +45,48 @@ interface Stats {
 export default function Dashboard() {
   const [stats, setStats] = useState<Stats | null>(null);
   const [loading, setLoading] = useState(true);
+  const [lastUpdated, setLastUpdated] = useState<string>('');
+
+  const fetchData = async () => {
+    try {
+      const res = await fetch('/api/stats');
+      const data = await res.json();
+      setStats(data);
+      setLoading(false);
+      
+      // 업데이트 시간 설정 (KST)
+      if (data.generatedAt) {
+        const date = new Date(data.generatedAt);
+        const kstTime = date.toLocaleString('ko-KR', {
+          timeZone: 'Asia/Seoul',
+          hour: '2-digit',
+          minute: '2-digit',
+          second: '2-digit',
+          hour12: false
+        });
+        setLastUpdated(kstTime);
+      }
+    } catch {
+      setLoading(false);
+    }
+  };
 
   useEffect(() => {
-    fetch('/api/stats')
-      .then(res => res.json())
-      .then(data => {
-        setStats(data);
-        setLoading(false);
-      })
-      .catch(() => setLoading(false));
+    // 초기 로드
+    fetchData();
+    
+    // 20분마다 자동 새로고침
+    const interval = setInterval(fetchData, 20 * 60 * 1000);
+    return () => clearInterval(interval);
   }, []);
 
+  // 오늘 날짜 (KST 기준, 2026.03.12 형식)
   const today = new Date().toLocaleDateString('ko-KR', {
+    timeZone: 'Asia/Seoul',
     year: 'numeric',
     month: '2-digit',
     day: '2-digit'
-  }).replace(/\. /g, '.').replace('.', '');
+  }).replace(/\. /g, '.').replace(/\.$/, '');
 
   const formatChange = (value: number) => {
     if (value > 0) return `+${value.toFixed(1)}%`;
@@ -77,11 +103,18 @@ export default function Dashboard() {
     <div className="min-h-screen bg-gradient-to-br from-purple-600 via-blue-500 to-purple-700 p-6">
       {/* Header */}
       <div className="mb-6">
-        <h1 className="text-2xl font-bold text-white flex items-center gap-2">
-          <span className="text-3xl">■</span>
-          차란 CX 실시간 대시보드 
-          <span className="text-yellow-300">({today})</span>
-        </h1>
+        <div className="flex items-center justify-between">
+          <h1 className="text-2xl font-bold text-white flex items-center gap-2">
+            <span className="text-3xl">■</span>
+            차란 CX 실시간 대시보드 
+            <span className="text-yellow-300">({today})</span>
+          </h1>
+          <div className="text-white/80 text-sm">
+            {lastUpdated && (
+              <span>마지막 업데이트: {lastUpdated} · 20분마다 자동 갱신</span>
+            )}
+          </div>
+        </div>
         <p className="text-white/70 text-sm mt-1">채널톡 고객응대 현황 - Daily</p>
       </div>
 
