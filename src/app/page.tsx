@@ -138,7 +138,7 @@ export default function Dashboard() {
       }
       // tab === 'daily' → 기본 URL (오늘 데이터)
       
-      const res = await fetch(url);
+      const res = await fetch(url, { cache: 'no-store' });
       const data = await res.json();
       setStats(data);
       setLoading(false);
@@ -189,13 +189,18 @@ export default function Dashboard() {
   useEffect(() => {
     // 초기 로드
     fetchData();
-    
-    // 20분마다 자동 새로고침 (daily 탭일 때만)
-    const interval = setInterval(() => {
-      if (activeTab === 'daily') fetchData();
-    }, 20 * 60 * 1000);
-    return () => clearInterval(interval);
   }, []);
+
+  // 5분마다 자동 새로고침 (daily 탭일 때만)
+  useEffect(() => {
+    if (activeTab !== 'daily') return;
+    
+    const interval = setInterval(() => {
+      fetchData();
+    }, 5 * 60 * 1000);  // 5분마다
+    
+    return () => clearInterval(interval);
+  }, [activeTab]);
 
   // 오늘 날짜 (KST 기준, 2026.03.12 형식)
   const today = new Date().toLocaleDateString('ko-KR', {
@@ -243,7 +248,7 @@ export default function Dashboard() {
           </div>
           <div className="flex items-center gap-3 text-white/80 text-sm">
             {lastUpdated && (
-              <span>마지막 업데이트: {lastUpdated} · 20분마다 자동 갱신</span>
+              <span>마지막 업데이트: {lastUpdated} · 5분마다 자동 갱신</span>
             )}
             <button
               onClick={handleRefresh}

@@ -317,6 +317,10 @@ function getPrevWeekRange(weekStart: string, weekEnd: string): [number, number] 
   return [start, end]
 }
 
+// 캐시 비활성화 - 항상 최신 데이터 조회
+export const dynamic = 'force-dynamic'
+export const revalidate = 0
+
 export async function GET(request: Request) {
   try {
     const { searchParams } = new URL(request.url)
