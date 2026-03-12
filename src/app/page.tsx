@@ -125,8 +125,11 @@ export default function Dashboard() {
       <div className="grid grid-cols-2 gap-6 mb-6">
         <div className="bg-gradient-to-r from-emerald-500 to-teal-600 rounded-2xl p-6 shadow-xl">
           <div className="flex items-center justify-between">
-            <div>
-              <p className="text-white/80 text-lg font-medium">응답률</p>
+            <div className="flex-1">
+              <div className="flex items-center gap-3">
+                <p className="text-white/80 text-lg font-medium">응답률</p>
+                <p className="text-white/50 text-xs">상담원이 1회 이상 응답한 문의 비율</p>
+              </div>
               <p className="text-white text-5xl font-bold mt-2">
                 {loading ? '-' : `${stats?.today.responseRate || 0}%`}
               </p>
@@ -140,8 +143,11 @@ export default function Dashboard() {
         
         <div className="bg-gradient-to-r from-orange-500 to-rose-600 rounded-2xl p-6 shadow-xl">
           <div className="flex items-center justify-between">
-            <div>
-              <p className="text-white/80 text-lg font-medium">해결률</p>
+            <div className="flex-1">
+              <div className="flex items-center gap-3">
+                <p className="text-white/80 text-lg font-medium">해결률</p>
+                <p className="text-white/50 text-xs">최종 종결(Closed)된 문의 비율</p>
+              </div>
               <p className="text-white text-5xl font-bold mt-2">
                 {loading ? '-' : `${stats?.today.resolutionRate || 0}%`}
               </p>
