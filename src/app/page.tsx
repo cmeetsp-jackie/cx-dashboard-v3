@@ -182,36 +182,48 @@ export default function Dashboard() {
                   <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500"></div>
                   <span className="ml-2 text-gray-500">데이터 로딩 중...</span>
                 </div>
-              ) : (
-                <div className="relative">
-                  <div className="flex items-end gap-[2px] h-[120px]">
-                    {Array.from({ length: 24 }, (_, i) => {
-                      const count = stats?.today.byHour[i.toString()] || 0;
-                      const values = Object.values(stats?.today.byHour || {});
-                      const max = values.length > 0 ? Math.max(...values.map(v => Number(v))) : 1;
-                      const heightPx = max > 0 ? Math.round((count / max) * 100) : 0;
-                      return (
-                        <div key={i} className="flex-1 flex flex-col justify-end items-center h-full">
-                          <div
-                            className="w-full bg-blue-400 rounded-t transition-all"
-                            style={{ height: `${heightPx}px` }}
-                            title={`${i}시: ${count}건`}
-                          />
-                        </div>
-                      );
-                    })}
+              ) : (() => {
+                const values = Object.values(stats?.today.byHour || {});
+                const max = values.length > 0 ? Math.max(...values.map(v => Number(v))) : 1;
+                const mid = Math.round(max / 2);
+                return (
+                  <div className="relative flex">
+                    {/* Y축 라벨 */}
+                    <div className="flex flex-col justify-between h-[120px] pr-2 text-[10px] text-gray-400 text-right w-8">
+                      <span>{max}건</span>
+                      <span>{mid}건</span>
+                      <span>0건</span>
+                    </div>
+                    {/* 차트 영역 */}
+                    <div className="flex-1">
+                      <div className="flex items-end gap-[2px] h-[120px] border-l border-b border-gray-200">
+                        {Array.from({ length: 24 }, (_, i) => {
+                          const count = stats?.today.byHour[i.toString()] || 0;
+                          const heightPx = max > 0 ? Math.round((count / max) * 120) : 0;
+                          return (
+                            <div key={i} className="flex-1 flex flex-col justify-end items-center h-full">
+                              <div
+                                className="w-full bg-blue-400 rounded-t transition-all"
+                                style={{ height: `${heightPx}px` }}
+                                title={`${i}시: ${count}건`}
+                              />
+                            </div>
+                          );
+                        })}
+                      </div>
+                      <div className="flex justify-between mt-1 text-[10px] text-gray-400 pl-1">
+                        <span>0</span>
+                        <span>4</span>
+                        <span>8</span>
+                        <span>12</span>
+                        <span>16</span>
+                        <span>20</span>
+                        <span>24</span>
+                      </div>
+                    </div>
                   </div>
-                  <div className="flex justify-between mt-2 text-[10px] text-gray-400">
-                    <span>0</span>
-                    <span>4</span>
-                    <span>8</span>
-                    <span>12</span>
-                    <span>16</span>
-                    <span>20</span>
-                    <span>24</span>
-                  </div>
-                </div>
-              )}
+                );
+              })()}
             </div>
             
             <div className="bg-white rounded-xl p-4 shadow-lg min-h-[200px]">
