@@ -68,16 +68,19 @@ async function fetchAllChats(sinceMs: number, untilMs: number): Promise<Chat[]> 
   const states = ['opened', 'closed']
   const allChats: Chat[] = []
   const seenIds = new Set<string>()
-  const maxPages = 10
+  const maxPages = 20  // 증가: 더 많은 페이지 검색
 
   for (const state of states) {
     let nextCursor: string | undefined
     let pages = 0
-    let foundOlder = false
+    let consecutiveOldPages = 0  // 연속으로 범위 밖 페이지 카운트
 
     while (pages < maxPages) {
       const { chats, next } = await fetchChats(state, nextCursor)
       if (chats.length === 0) break
+
+      let foundInRange = 0
+      let foundOlder = 0
 
       for (const chat of chats) {
         if (seenIds.has(chat.id)) continue
@@ -86,12 +89,22 @@ async function fetchAllChats(sinceMs: number, untilMs: number): Promise<Chat[]> 
         if (created >= sinceMs && created <= untilMs) {
           allChats.push(chat)
           seenIds.add(chat.id)
+          foundInRange++
         } else if (created < sinceMs) {
-          foundOlder = true
+          foundOlder++
         }
       }
 
-      if (foundOlder || !next) break
+      // 이 페이지에서 범위 내 데이터를 찾았으면 리셋
+      if (foundInRange > 0) {
+        consecutiveOldPages = 0
+      } else if (foundOlder > 0) {
+        consecutiveOldPages++
+      }
+
+      // 연속 3페이지가 모두 범위 밖이면 중단
+      if (consecutiveOldPages >= 3 || !next) break
+      
       nextCursor = next
       pages++
     }
