@@ -20,7 +20,9 @@ interface Stats {
   };
   yesterday: {
     total: number;
+    byState: { opened: number; closed: number };
     byProduct: { market: number; cared: number };
+    resolutionRate: number;
   };
   change: { total: number; market: number; cared: number };
   cared: {
