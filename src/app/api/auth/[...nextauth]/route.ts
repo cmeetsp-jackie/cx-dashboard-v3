@@ -6,17 +6,19 @@ const handler = NextAuth({
     CredentialsProvider({
       name: 'Admin',
       credentials: {
+        username: { label: '아이디', type: 'text' },
         password: { label: '비밀번호', type: 'password' }
       },
       async authorize(credentials) {
+        const adminUsername = process.env.ADMIN_USERNAME
         const adminPassword = process.env.ADMIN_PASSWORD
         
-        if (!adminPassword) {
-          console.error('ADMIN_PASSWORD not set')
+        if (!adminUsername || !adminPassword) {
+          console.error('ADMIN credentials not set')
           return null
         }
         
-        if (credentials?.password === adminPassword) {
+        if (credentials?.username === adminUsername && credentials?.password === adminPassword) {
           return { id: '1', name: 'Admin' }
         }
         return null

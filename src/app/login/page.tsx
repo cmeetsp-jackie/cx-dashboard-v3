@@ -5,6 +5,7 @@ import { signIn } from 'next-auth/react'
 import { useRouter } from 'next/navigation'
 
 export default function LoginPage() {
+  const [username, setUsername] = useState('')
   const [password, setPassword] = useState('')
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
@@ -16,6 +17,7 @@ export default function LoginPage() {
     setLoading(true)
 
     const result = await signIn('credentials', {
+      username,
       password,
       redirect: false,
     })
@@ -23,7 +25,7 @@ export default function LoginPage() {
     setLoading(false)
 
     if (result?.error) {
-      setError('비밀번호가 올바르지 않습니다')
+      setError('아이디 또는 비밀번호가 올바르지 않습니다')
     } else {
       router.push('/')
       router.refresh()
@@ -41,7 +43,22 @@ export default function LoginPage() {
           <p className="text-gray-500 mt-2">관리자 로그인</p>
         </div>
 
-        <form onSubmit={handleSubmit} className="space-y-6">
+        <form onSubmit={handleSubmit} className="space-y-5">
+          <div>
+            <label htmlFor="username" className="block text-sm font-medium text-gray-700 mb-2">
+              아이디
+            </label>
+            <input
+              type="text"
+              id="username"
+              value={username}
+              onChange={(e) => setUsername(e.target.value)}
+              className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent outline-none transition text-gray-800"
+              placeholder="아이디를 입력하세요"
+              required
+            />
+          </div>
+
           <div>
             <label htmlFor="password" className="block text-sm font-medium text-gray-700 mb-2">
               비밀번호
