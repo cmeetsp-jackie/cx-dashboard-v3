@@ -183,24 +183,33 @@ export default function Dashboard() {
                   <span className="ml-2 text-gray-500">데이터 로딩 중...</span>
                 </div>
               ) : (
-                <div className="flex items-end gap-1 h-32">
-                  {Array.from({ length: 24 }, (_, i) => {
-                    const count = stats?.today.byHour[i.toString()] || 0;
-                    const max = Math.max(...Object.values(stats?.today.byHour || { '0': 1 }));
-                    const height = max > 0 ? (count / max) * 100 : 0;
-                    return (
-                      <div key={i} className="flex-1 flex flex-col items-center">
-                        <div
-                          className="w-full bg-blue-400 rounded-t"
-                          style={{ height: `${height}%`, minHeight: count > 0 ? '4px' : '0' }}
-                          title={`${i}시: ${count}건`}
-                        />
-                        {i % 4 === 0 && (
-                          <span className="text-[10px] text-gray-400 mt-1">{i}</span>
-                        )}
-                      </div>
-                    );
-                  })}
+                <div className="relative">
+                  <div className="flex items-end gap-[2px] h-[120px]">
+                    {Array.from({ length: 24 }, (_, i) => {
+                      const count = stats?.today.byHour[i.toString()] || 0;
+                      const values = Object.values(stats?.today.byHour || {});
+                      const max = values.length > 0 ? Math.max(...values.map(v => Number(v))) : 1;
+                      const heightPx = max > 0 ? Math.round((count / max) * 100) : 0;
+                      return (
+                        <div key={i} className="flex-1 flex flex-col justify-end items-center h-full">
+                          <div
+                            className="w-full bg-blue-400 rounded-t transition-all"
+                            style={{ height: `${heightPx}px` }}
+                            title={`${i}시: ${count}건`}
+                          />
+                        </div>
+                      );
+                    })}
+                  </div>
+                  <div className="flex justify-between mt-2 text-[10px] text-gray-400">
+                    <span>0</span>
+                    <span>4</span>
+                    <span>8</span>
+                    <span>12</span>
+                    <span>16</span>
+                    <span>20</span>
+                    <span>24</span>
+                  </div>
                 </div>
               )}
             </div>
