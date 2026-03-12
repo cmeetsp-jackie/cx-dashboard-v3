@@ -770,8 +770,8 @@ export default function Dashboard() {
 
       {/* 주간 트래커 - 하단 동그라미 7개 */}
       {activeTab !== 'weekly' && (
-        <div className="mt-6 bg-white/90 rounded-2xl p-6 shadow-xl">
-          <h3 className="text-gray-700 font-semibold mb-4 text-center">📅 이번 주 해결률 & 해결시간 트래커 (3/11 ~ 3/17)</h3>
+        <div className="mt-2 py-4">
+          <h3 className="text-white font-semibold mb-3 text-center text-sm">📅 이번 주 해결률 & 해결시간 트래커 (3/11 ~ 3/17)</h3>
           <div className="flex justify-center items-end gap-6">
             {(() => {
               const weekDays = [
@@ -790,19 +790,31 @@ export default function Dashboard() {
               const todayMonth = kstNow.getUTCMonth() + 1;
               const todayStr = `${todayMonth}/${todayDate}`;
               
+              // 어제 날짜 계산
+              const yesterdayDate = todayDate - 1;
+              const yesterdayStr = `${todayMonth}/${yesterdayDate}`;
+              
               return weekDays.map((item, idx) => {
                 const isToday = item.date === todayStr;
+                const isYesterday = item.date === yesterdayStr;
                 const isPast = (() => {
                   const [m, d] = item.date.split('/').map(Number);
                   if (todayMonth > m) return true;
                   if (todayMonth === m && todayDate > d) return true;
                   return false;
                 })();
-                const isFuture = !isToday && !isPast;
                 
-                // 오늘 데이터는 현재 stats에서 가져옴
-                const resolutionRate = isToday ? (stats?.today.resolutionRate || 0) : (isPast ? '-' : '-');
-                const resolutionTime = isToday ? (stats?.today.avgResolutionTimeMin || 0).toFixed(0) : (isPast ? '-' : '-');
+                // 데이터 결정
+                let resolutionRate: string | number = '-';
+                let resolutionTime: string | number = '-';
+                
+                if (isToday) {
+                  resolutionRate = stats?.today.resolutionRate || 0;
+                  resolutionTime = (stats?.today.avgResolutionTimeMin || 0).toFixed(0);
+                } else if (isYesterday) {
+                  resolutionRate = stats?.yesterday.resolutionRate || 0;
+                  resolutionTime = (stats?.yesterday.avgResolutionTimeMin || 0).toFixed(0);
+                }
                 
                 return (
                   <div key={idx} className="flex flex-col items-center">
@@ -818,19 +830,21 @@ export default function Dashboard() {
                     <div className={`w-20 h-20 rounded-full flex flex-col items-center justify-center shadow-lg border-4 ${
                       isToday 
                         ? 'bg-gradient-to-br from-rose-500 to-pink-600 border-rose-300 text-white' 
-                        : isPast 
-                          ? 'bg-gradient-to-br from-gray-100 to-gray-200 border-gray-300 text-gray-600'
-                          : 'bg-gradient-to-br from-gray-50 to-gray-100 border-gray-200 text-gray-400'
+                        : isYesterday
+                          ? 'bg-gradient-to-br from-indigo-500 to-purple-600 border-indigo-300 text-white'
+                          : isPast 
+                            ? 'bg-gradient-to-br from-gray-400 to-gray-500 border-gray-300 text-white'
+                            : 'bg-gradient-to-br from-gray-600 to-gray-700 border-gray-500 text-gray-300'
                     }`}>
-                      <span className="text-lg font-bold">{isToday ? `${resolutionRate}%` : (isPast ? '-' : '-')}</span>
-                      <span className="text-xs">{isToday ? `${resolutionTime}분` : '-'}</span>
+                      <span className="text-lg font-bold">{resolutionRate !== '-' ? `${resolutionRate}%` : '-'}</span>
+                      <span className="text-xs">{resolutionTime !== '-' ? `${resolutionTime}분` : '-'}</span>
                     </div>
                     
                     {/* 날짜 */}
-                    <span className={`mt-2 text-sm font-medium ${isToday ? 'text-rose-600' : 'text-gray-500'}`}>
+                    <span className={`mt-2 text-sm font-medium ${isToday ? 'text-rose-300' : 'text-white/80'}`}>
                       {item.date}
                     </span>
-                    <span className={`text-xs ${isToday ? 'text-rose-400' : 'text-gray-400'}`}>
+                    <span className={`text-xs ${isToday ? 'text-rose-200' : 'text-white/60'}`}>
                       ({item.day})
                     </span>
                   </div>
@@ -838,7 +852,7 @@ export default function Dashboard() {
               });
             })()}
           </div>
-          <p className="text-center text-gray-400 text-xs mt-4">* 해결률(%) / 평균해결시간(분)</p>
+          <p className="text-center text-white/50 text-xs mt-3">* 해결률(%) / 평균해결시간(분)</p>
         </div>
       )}
     </div>
