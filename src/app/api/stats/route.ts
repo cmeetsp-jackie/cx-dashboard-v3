@@ -32,17 +32,32 @@ function classifyProduct(chat: Chat): 'market' | 'cared' {
 }
 
 function getTodayRange(): [number, number] {
+  // KST (UTC+9) 기준으로 계산
   const now = new Date()
-  const start = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 0, 0, 0)
-  return [start.getTime(), now.getTime()]
+  const kstOffset = 9 * 60 * 60 * 1000  // 9시간
+  const kstNow = new Date(now.getTime() + kstOffset)
+  
+  // KST 기준 오늘 00:00:00
+  const kstMidnight = new Date(Date.UTC(kstNow.getUTCFullYear(), kstNow.getUTCMonth(), kstNow.getUTCDate(), 0, 0, 0))
+  const start = kstMidnight.getTime() - kstOffset  // UTC로 변환
+  
+  return [start, now.getTime()]
 }
 
 function getYesterdayRange(): [number, number] {
+  // KST (UTC+9) 기준으로 계산
   const now = new Date()
-  const yesterday = new Date(now.getTime() - 24 * 60 * 60 * 1000)
-  const start = new Date(yesterday.getFullYear(), yesterday.getMonth(), yesterday.getDate(), 0, 0, 0)
-  const end = new Date(yesterday.getFullYear(), yesterday.getMonth(), yesterday.getDate(), 23, 59, 59, 999)
-  return [start.getTime(), end.getTime()]
+  const kstOffset = 9 * 60 * 60 * 1000  // 9시간
+  const kstNow = new Date(now.getTime() + kstOffset)
+  
+  // KST 기준 어제
+  const kstYesterday = new Date(kstNow.getTime() - 24 * 60 * 60 * 1000)
+  
+  // KST 기준 어제 00:00:00과 23:59:59
+  const start = Date.UTC(kstYesterday.getUTCFullYear(), kstYesterday.getUTCMonth(), kstYesterday.getUTCDate(), 0, 0, 0) - kstOffset
+  const end = Date.UTC(kstYesterday.getUTCFullYear(), kstYesterday.getUTCMonth(), kstYesterday.getUTCDate(), 23, 59, 59, 999) - kstOffset
+  
+  return [start, end]
 }
 
 async function fetchChats(state: string, nextCursor?: string): Promise<{ chats: Chat[]; next?: string }> {
