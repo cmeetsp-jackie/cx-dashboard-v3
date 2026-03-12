@@ -265,7 +265,7 @@ function calculateStats(chats: Chat[]) {
     
     // 해결 시간 (종료된 채팅만)
     if (chat.state === 'closed' && chat.resolutionTime) {
-      totalResolutionTime += chat.resolutionTime / 60000  // ms -> minutes
+      totalResolutionTime += chat.resolutionTime / 60  // seconds -> minutes
       resolutionCount++
     }
   }
