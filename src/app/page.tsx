@@ -136,7 +136,7 @@ export default function Dashboard() {
           <div className="flex items-center justify-between">
             <div className="flex-1">
               <div className="flex items-center gap-3">
-                <p className="text-white text-lg font-medium">응답률</p>
+                <p className="text-white text-lg font-medium">오늘 응답률</p>
               </div>
               <p className="text-white text-5xl font-bold mt-2">
                 {loading ? '-' : `${stats?.today.responseRate || 0}%`}
@@ -156,7 +156,7 @@ export default function Dashboard() {
           <div className="flex items-center justify-between">
             <div className="flex-1">
               <div className="flex items-center gap-3">
-                <p className="text-white text-lg font-medium">해결률</p>
+                <p className="text-white text-lg font-medium">오늘 해결률</p>
               </div>
               <p className="text-white text-5xl font-bold mt-2">
                 {loading ? '-' : `${stats?.today.resolutionRate || 0}%`}
@@ -233,19 +233,19 @@ export default function Dashboard() {
           {/* Top Stats Row */}
           <div className="grid grid-cols-5 gap-4">
             <div className="bg-white rounded-xl p-4 shadow-lg">
-              <p className="text-gray-500 text-sm">문의건수</p>
+              <p className="text-gray-500 text-sm">오늘 문의건수</p>
               <p className="text-3xl font-bold text-blue-600">
                 {loading ? '-' : stats?.today.total || 0}
               </p>
             </div>
             <div className="bg-white rounded-xl p-4 shadow-lg">
-              <p className="text-gray-500 text-sm">문의 응대중</p>
+              <p className="text-gray-500 text-sm">오늘 문의 응대중</p>
               <p className="text-3xl font-bold text-orange-500">
                 {loading ? '-' : stats?.today.byState.opened || 0}
               </p>
             </div>
             <div className="bg-white rounded-xl p-4 shadow-lg">
-              <p className="text-gray-500 text-sm">문의종료</p>
+              <p className="text-gray-500 text-sm">오늘 문의종료</p>
               <p className="text-3xl font-bold text-green-600">
                 {loading ? '-' : stats?.today.byState.closed || 0}
               </p>
@@ -260,7 +260,7 @@ export default function Dashboard() {
               </p>
             </div>
             <div className="bg-white rounded-xl p-4 shadow-lg">
-              <p className="text-gray-500 text-sm">평균 응답시간</p>
+              <p className="text-gray-500 text-sm">오늘 평균응답시간</p>
               <p className="text-3xl font-bold text-cyan-600">
                 {loading ? '-' : `${(stats?.today.avgFirstResponseTimeMin || 0).toFixed(1)}분`}
               </p>
@@ -270,7 +270,7 @@ export default function Dashboard() {
           {/* Middle Row - Charts */}
           <div className="grid grid-cols-2 gap-4">
             <div className="bg-white rounded-xl p-4 shadow-lg min-h-[200px]">
-              <h3 className="text-gray-700 font-semibold mb-3">시간대별 대화량</h3>
+              <h3 className="text-gray-700 font-semibold mb-3">오늘 시간대별 대화량</h3>
               {loading ? (
                 <div className="flex items-center justify-center h-32">
                   <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500"></div>
@@ -321,7 +321,7 @@ export default function Dashboard() {
             </div>
             
             <div className="bg-white rounded-xl p-4 shadow-lg min-h-[200px]">
-              <h3 className="text-gray-700 font-semibold mb-3">팀원별 처리 현황</h3>
+              <h3 className="text-gray-700 font-semibold mb-3">오늘 팀원별 처리 현황</h3>
               {loading ? (
                 <div className="flex items-center justify-center h-32">
                   <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500"></div>
@@ -400,7 +400,7 @@ export default function Dashboard() {
           {/* Bottom Row - 케어드/마켓 문의 */}
           <div className="grid grid-cols-2 gap-4">
             <div className="bg-white rounded-xl p-4 shadow-lg">
-              <h3 className="text-gray-700 font-semibold mb-3">케어드 문의</h3>
+              <h3 className="text-gray-700 font-semibold mb-3">오늘 케어드 문의</h3>
               <p className="text-4xl font-bold text-blue-600">
                 {loading ? '-' : stats?.cared.stats.total || 0}
               </p>
@@ -412,7 +412,7 @@ export default function Dashboard() {
             </div>
             
             <div className="bg-white rounded-xl p-4 shadow-lg">
-              <h3 className="text-gray-700 font-semibold mb-3">마켓 문의</h3>
+              <h3 className="text-gray-700 font-semibold mb-3">오늘 마켓 문의</h3>
               <p className="text-4xl font-bold text-purple-600">
                 {loading ? '-' : stats?.market.stats.total || 0}
               </p>
