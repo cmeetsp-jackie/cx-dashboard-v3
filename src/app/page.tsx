@@ -840,6 +840,7 @@ export default function Dashboard() {
                 })()}
               </div>
               <p className="text-center text-white/50 text-[10px] mt-2">* 1차 해결률(%) / 담당자 배정건</p>
+              <p className="text-center text-white/40 text-[9px] mt-1 max-w-xs">정의: 당일 문의 중 담당자 배정 건 기준, 당일 19시 전 해결 비율</p>
             </div>
 
             {/* 구분선 */}
