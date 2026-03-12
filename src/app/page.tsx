@@ -21,6 +21,8 @@ interface Stats {
   yesterday: {
     total: number;
     byProduct: { market: number; cared: number };
+    byState: { opened: number; closed: number };
+    resolutionRate: number;
   };
   change: { total: number; market: number; cared: number };
   cared: {
@@ -162,7 +164,7 @@ export default function Dashboard() {
       </div>
 
       {/* 응답률 & 해결률 - 상단 대형 카드 */}
-      <div className="grid grid-cols-2 gap-6 mb-6">
+      <div className="grid grid-cols-3 gap-6 mb-6">
         <div className="bg-gradient-to-r from-emerald-500 to-teal-600 rounded-2xl p-6 shadow-xl">
           <div className="flex items-center justify-between">
             <div className="flex-1">
@@ -180,6 +182,26 @@ export default function Dashboard() {
               </p>
             </div>
             <div className="text-6xl opacity-30">📞</div>
+          </div>
+        </div>
+
+        <div className="bg-gradient-to-r from-slate-600 to-slate-700 rounded-2xl p-6 shadow-xl">
+          <div className="flex items-center justify-between">
+            <div className="flex-1">
+              <div className="flex items-center gap-3">
+                <p className="text-white text-lg font-medium">어제 해결률</p>
+              </div>
+              <p className="text-white text-5xl font-bold mt-2">
+                {loading ? '-' : `${stats?.yesterday.resolutionRate || 0}%`}
+              </p>
+              <p className="text-white/70 text-sm mt-2">
+                {loading ? '' : `${stats?.yesterday.byState?.closed || 0}건 해결 / ${stats?.yesterday.total || 0}건 접수`}
+              </p>
+              <p className="text-white/50 text-xs mt-3 border-t border-white/20 pt-2">
+                = (어제 종결된 문의 건수 ÷ 어제 접수된 문의) × 100
+              </p>
+            </div>
+            <div className="text-6xl opacity-30">📊</div>
           </div>
         </div>
         
