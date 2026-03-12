@@ -1,8 +1,8 @@
 import { NextResponse } from 'next/server'
 
 const CHANNELTALK_API = 'https://api.channel.io/open/v5'
-const ACCESS_KEY = process.env.CHANNELTALK_ACCESS_KEY || '69b120460b36917dd338'
-const ACCESS_SECRET = process.env.CHANNELTALK_ACCESS_SECRET || 'c26560906ad5cbbc73901ad4ba99e16b'
+const ACCESS_KEY = process.env.CHANNELTALK_ACCESS_KEY!
+const ACCESS_SECRET = process.env.CHANNELTALK_ACCESS_SECRET!
 
 // 마켓 태그 (구매자/, 판매자/, 공통/, P2P 등)
 const MARKET_PREFIXES = ['구매자/', '판매자/', '공통/', 'P2P', '마켓']
