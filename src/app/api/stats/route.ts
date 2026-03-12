@@ -4,6 +4,12 @@ const CHANNELTALK_API = 'https://api.channel.io/open/v5'
 const ACCESS_KEY = process.env.CHANNELTALK_ACCESS_KEY!
 const ACCESS_SECRET = process.env.CHANNELTALK_ACCESS_SECRET!
 
+// ClickHouse 연결 정보
+const CLICKHOUSE_HOST = process.env.CLICKHOUSE_HOST || 'clickhouse.data.charan.app'
+const CLICKHOUSE_PORT = process.env.CLICKHOUSE_PORT || '8123'
+const CLICKHOUSE_USER = process.env.CLICKHOUSE_USER!
+const CLICKHOUSE_PASSWORD = process.env.CLICKHOUSE_PASSWORD!
+
 // 마켓 태그 (구매자/, 판매자/, 공통/, P2P 등)
 const MARKET_PREFIXES = ['구매자/', '판매자/', '공통/', 'P2P', '마켓']
 
@@ -126,6 +132,53 @@ const MANAGERS: Record<string, string> = {
   '435419': 'Joy',
   '524187': 'Sara',
   '570790': 'Sia',
+}
+
+// ClickHouse에서 데이터 조회 (주간 데이터용)
+async function fetchChatsFromClickHouse(startDate: string, endDate: string): Promise<Chat[]> {
+  const query = `
+    SELECT 
+      id,
+      state,
+      tags,
+      assignee_id as assigneeId,
+      toUnixTimestamp64Milli(created_at) as createdAt,
+      avg_reply_time as avgReplyTime,
+      toUnixTimestamp64Milli(first_replied_at) as firstRepliedAt,
+      toUnixTimestamp64Milli(first_opened_at) as firstOpenedAt
+    FROM rawdata_channel_talk.user_chats 
+    WHERE created_at >= '${startDate} 00:00:00' 
+      AND created_at < '${endDate} 23:59:59'
+    FORMAT JSON
+  `
+  
+  const auth = Buffer.from(`${CLICKHOUSE_USER}:${CLICKHOUSE_PASSWORD}`).toString('base64')
+  
+  const response = await fetch(`http://${CLICKHOUSE_HOST}:${CLICKHOUSE_PORT}/`, {
+    method: 'POST',
+    headers: {
+      'Authorization': `Basic ${auth}`,
+      'Content-Type': 'text/plain',
+    },
+    body: query,
+  })
+  
+  if (!response.ok) {
+    console.error('ClickHouse error:', await response.text())
+    return []
+  }
+  
+  const result = await response.json()
+  
+  // tags 파싱 (ClickHouse에서 Array(String)으로 저장됨)
+  return (result.data || []).map((row: any) => ({
+    ...row,
+    tags: Array.isArray(row.tags) ? row.tags : (row.tags ? JSON.parse(row.tags) : []),
+    createdAt: Number(row.createdAt),
+    avgReplyTime: row.avgReplyTime ? Number(row.avgReplyTime) : undefined,
+    firstRepliedAt: row.firstRepliedAt ? Number(row.firstRepliedAt) : undefined,
+    firstOpenedAt: row.firstOpenedAt ? Number(row.firstOpenedAt) : undefined,
+  }))
 }
 
 function calculateStats(chats: Chat[]) {
@@ -252,21 +305,32 @@ export async function GET(request: Request) {
     const weekStart = searchParams.get('weekStart')
     const weekEnd = searchParams.get('weekEnd')
 
-    let currentStart: number, currentEnd: number
-    let prevStart: number, prevEnd: number
+    let todayChats: Chat[]
+    let yesterdayChats: Chat[]
 
     if (period === 'weekly' && weekStart && weekEnd) {
-      [currentStart, currentEnd] = getWeekRange(weekStart, weekEnd)
-      ;[prevStart, prevEnd] = getPrevWeekRange(weekStart, weekEnd)
+      // 주간 데이터: ClickHouse에서 직접 조회 (정확한 데이터)
+      const prevWeekStart = new Date(weekStart)
+      prevWeekStart.setDate(prevWeekStart.getDate() - 7)
+      const prevWeekEnd = new Date(weekEnd)
+      prevWeekEnd.setDate(prevWeekEnd.getDate() - 7)
+      
+      const formatDate = (d: Date) => d.toISOString().split('T')[0]
+      
+      ;[todayChats, yesterdayChats] = await Promise.all([
+        fetchChatsFromClickHouse(weekStart, weekEnd),
+        fetchChatsFromClickHouse(formatDate(prevWeekStart), formatDate(prevWeekEnd)),
+      ])
     } else {
-      [currentStart, currentEnd] = getTodayRange()
-      ;[prevStart, prevEnd] = getYesterdayRange()
+      // 일간 데이터: Channel Talk API 직접 호출 (실시간성)
+      const [currentStart, currentEnd] = getTodayRange()
+      const [prevStart, prevEnd] = getYesterdayRange()
+      
+      ;[todayChats, yesterdayChats] = await Promise.all([
+        fetchAllChats(currentStart, currentEnd),
+        fetchAllChats(prevStart, prevEnd),
+      ])
     }
-
-    const [todayChats, yesterdayChats] = await Promise.all([
-      fetchAllChats(currentStart, currentEnd),
-      fetchAllChats(prevStart, prevEnd),
-    ])
 
     const todayStats = calculateStats(todayChats)
     const yesterdayStats = calculateStats(yesterdayChats)
