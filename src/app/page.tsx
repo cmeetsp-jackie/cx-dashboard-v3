@@ -127,14 +127,16 @@ export default function Dashboard() {
           <div className="flex items-center justify-between">
             <div className="flex-1">
               <div className="flex items-center gap-3">
-                <p className="text-white/80 text-lg font-medium">응답률</p>
-                <p className="text-white/50 text-xs">상담원이 1회 이상 응답한 문의 비율</p>
+                <p className="text-white text-lg font-medium">응답률</p>
               </div>
               <p className="text-white text-5xl font-bold mt-2">
                 {loading ? '-' : `${stats?.today.responseRate || 0}%`}
               </p>
               <p className="text-white/70 text-sm mt-2">
                 {loading ? '' : `${stats?.today.respondedCount || 0}건 응답 / ${stats?.today.total || 0}건 접수`}
+              </p>
+              <p className="text-white/50 text-xs mt-3 border-t border-white/20 pt-2">
+                = (응답을 보낸 문의 건수 ÷ 전체 접수된 문의) × 100
               </p>
             </div>
             <div className="text-6xl opacity-30">📞</div>
@@ -145,14 +147,16 @@ export default function Dashboard() {
           <div className="flex items-center justify-between">
             <div className="flex-1">
               <div className="flex items-center gap-3">
-                <p className="text-white/80 text-lg font-medium">해결률</p>
-                <p className="text-white/50 text-xs">최종 종결(Closed)된 문의 비율</p>
+                <p className="text-white text-lg font-medium">해결률</p>
               </div>
               <p className="text-white text-5xl font-bold mt-2">
                 {loading ? '-' : `${stats?.today.resolutionRate || 0}%`}
               </p>
               <p className="text-white/70 text-sm mt-2">
                 {loading ? '' : `${stats?.today.byState.closed || 0}건 해결 / ${stats?.today.total || 0}건 접수`}
+              </p>
+              <p className="text-white/50 text-xs mt-3 border-t border-white/20 pt-2">
+                = (최종 종결된 문의 건수 ÷ 전체 접수된 문의) × 100
               </p>
             </div>
             <div className="text-6xl opacity-30">✅</div>
