@@ -84,19 +84,39 @@ async function fetchAllChats(sinceMs: number, untilMs: number): Promise<Chat[]> 
   const allChats: Chat[] = []
   const seenIds = new Set<string>()
 
-  // Channel Talk API 페이지네이션이 제대로 작동하지 않음
-  // 각 state별로 첫 페이지(100개)만 가져오고 날짜 필터링
+  // 페이지네이션으로 모든 데이터 가져오기
   for (const state of states) {
-    const { chats } = await fetchChats(state)
+    let nextCursor: string | undefined = undefined
+    let pageCount = 0
+    const maxPages = 50 // 안전장치: 최대 50페이지 (25,000건)
     
-    for (const chat of chats) {
-      if (seenIds.has(chat.id)) continue
-      const created = chat.createdAt || 0
+    while (pageCount < maxPages) {
+      const { chats, next } = await fetchChats(state, nextCursor)
+      pageCount++
       
-      if (created >= sinceMs && created <= untilMs) {
-        allChats.push(chat)
-        seenIds.add(chat.id)
+      if (chats.length === 0) break
+      
+      let hasOlderData = false
+      for (const chat of chats) {
+        if (seenIds.has(chat.id)) continue
+        const created = chat.createdAt || 0
+        
+        // 날짜 범위 체크
+        if (created >= sinceMs && created <= untilMs) {
+          allChats.push(chat)
+          seenIds.add(chat.id)
+        }
+        
+        // 날짜 범위보다 이전 데이터가 나오면 더 이상 가져올 필요 없음
+        if (created < sinceMs) {
+          hasOlderData = true
+        }
       }
+      
+      // 날짜 범위보다 오래된 데이터가 나왔거나, 다음 페이지가 없으면 중단
+      if (hasOlderData || !next) break
+      
+      nextCursor = next
     }
   }
   return allChats
