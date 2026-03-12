@@ -48,9 +48,13 @@ interface Stats {
 export default function Dashboard() {
   const [stats, setStats] = useState<Stats | null>(null);
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
   const [lastUpdated, setLastUpdated] = useState<string>('');
 
-  const fetchData = async () => {
+  const fetchData = async (isManualRefresh = false) => {
+    if (isManualRefresh) {
+      setRefreshing(true);
+    }
     try {
       const res = await fetch('/api/stats');
       const data = await res.json();
@@ -71,7 +75,13 @@ export default function Dashboard() {
       }
     } catch {
       setLoading(false);
+    } finally {
+      setRefreshing(false);
     }
+  };
+
+  const handleRefresh = () => {
+    fetchData(true);
   };
 
   useEffect(() => {
@@ -121,10 +131,31 @@ export default function Dashboard() {
               <img src="/team/jacky.png" alt="Jacky" className="w-20 h-20 rounded-full object-cover border-2 border-white/50" title="Jacky" />
             </div>
           </div>
-          <div className="text-white/80 text-sm">
+          <div className="flex items-center gap-3 text-white/80 text-sm">
             {lastUpdated && (
               <span>마지막 업데이트: {lastUpdated} · 20분마다 자동 갱신</span>
             )}
+            <button
+              onClick={handleRefresh}
+              disabled={refreshing}
+              className="flex items-center gap-2 px-4 py-2 bg-white/20 hover:bg-white/30 disabled:bg-white/10 rounded-lg transition-all"
+              title="수동 새로고침"
+            >
+              <svg
+                className={`w-4 h-4 ${refreshing ? 'animate-spin' : ''}`}
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"
+                />
+              </svg>
+              <span>{refreshing ? '새로고침 중...' : '새로고침'}</span>
+            </button>
           </div>
         </div>
         <p className="text-white/70 text-sm mt-1">채널톡 고객응대 현황 - Daily</p>
