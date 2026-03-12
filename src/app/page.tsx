@@ -1,231 +1,323 @@
-'use client'
+'use client';
 
-import { useEffect, useState } from 'react'
+import { useEffect, useState } from 'react';
 
 interface Stats {
-  total: number
-  byState: { opened: number; closed: number }
-  byProduct: { market: number; cared: number }
-  byManager: Record<string, number>
-  byHour: Record<number, number>
-  byTag: Record<string, number>
-  avgResponseTimeMin: number
-  avgFirstResponseTimeMin: number
-  aiRate: number
-}
-
-interface TopTag {
-  tag: string
-  count: number
-}
-
-interface DashboardData {
-  today: Stats
-  yesterday: Stats
-  change: { total: number; market: number; cared: number }
-  cared: { stats: Stats; topTags: TopTag[] }
-  market: { stats: Stats; topTags: TopTag[] }
-  generatedAt: string
-}
-
-function StatCard({ title, value, subValue, change }: { title: string; value: string | number; subValue?: string; change?: number }) {
-  return (
-    <div className="bg-gray-800 rounded-xl p-4 border border-gray-700">
-      <div className="text-gray-400 text-sm mb-1">{title}</div>
-      <div className="text-2xl font-bold text-white">{value}</div>
-      {subValue && <div className="text-gray-500 text-xs mt-1">{subValue}</div>}
-      {change !== undefined && (
-        <div className={`text-sm mt-1 ${change >= 0 ? 'text-green-400' : 'text-red-400'}`}>
-          {change >= 0 ? '↑' : '↓'} {Math.abs(change)}%
-        </div>
-      )}
-    </div>
-  )
-}
-
-function TagList({ tags, title }: { tags: TopTag[]; title: string }) {
-  return (
-    <div className="bg-gray-800 rounded-xl p-4 border border-gray-700">
-      <div className="text-gray-400 text-sm mb-3">{title}</div>
-      <div className="space-y-2">
-        {tags.slice(0, 10).map((t, i) => (
-          <div key={i} className="flex justify-between text-sm">
-            <span className="text-gray-300 truncate mr-2">{t.tag}</span>
-            <span className="text-white font-medium">{t.count}</span>
-          </div>
-        ))}
-        {tags.length === 0 && <div className="text-gray-500 text-sm">데이터 없음</div>}
-      </div>
-    </div>
-  )
-}
-
-function ManagerStats({ managers }: { managers: Record<string, number> }) {
-  const sorted = Object.entries(managers).sort((a, b) => b[1] - a[1])
-  return (
-    <div className="bg-gray-800 rounded-xl p-4 border border-gray-700">
-      <div className="text-gray-400 text-sm mb-3">팀원별 처리 현황</div>
-      <div className="space-y-2">
-        {sorted.map(([name, count]) => (
-          <div key={name} className="flex justify-between items-center">
-            <span className="text-gray-300">{name}</span>
-            <div className="flex items-center gap-2">
-              <div className="w-24 h-2 bg-gray-700 rounded-full overflow-hidden">
-                <div 
-                  className="h-full bg-blue-500 rounded-full"
-                  style={{ width: `${Math.min(100, (count / Math.max(...Object.values(managers))) * 100)}%` }}
-                />
-              </div>
-              <span className="text-white font-medium w-8 text-right">{count}</span>
-            </div>
-          </div>
-        ))}
-        {sorted.length === 0 && <div className="text-gray-500 text-sm">데이터 없음</div>}
-      </div>
-    </div>
-  )
-}
-
-function HourlyChart({ byHour }: { byHour: Record<number, number> }) {
-  const hours = Array.from({ length: 24 }, (_, i) => i)
-  const maxCount = Math.max(...Object.values(byHour), 1)
-  
-  return (
-    <div className="bg-gray-800 rounded-xl p-4 border border-gray-700">
-      <div className="text-gray-400 text-sm mb-3">시간대별 대화량</div>
-      <div className="flex items-end gap-1 h-20">
-        {hours.map(h => {
-          const count = byHour[h] || 0
-          const height = (count / maxCount) * 100
-          return (
-            <div key={h} className="flex-1 flex flex-col items-center">
-              <div 
-                className="w-full bg-blue-500 rounded-t"
-                style={{ height: `${height}%`, minHeight: count > 0 ? '4px' : '0' }}
-                title={`${h}시: ${count}건`}
-              />
-            </div>
-          )
-        })}
-      </div>
-      <div className="flex justify-between text-xs text-gray-500 mt-1">
-        <span>0시</span>
-        <span>12시</span>
-        <span>23시</span>
-      </div>
-    </div>
-  )
+  today: {
+    total: number;
+    byState: { opened: number; closed: number };
+    byProduct: { market: number; cared: number };
+    byManager: Record<string, number>;
+    byHour: Record<string, number>;
+    byTag: Record<string, number>;
+    avgResponseTimeMin: number;
+    avgFirstResponseTimeMin: number;
+    aiRate: number;
+  };
+  yesterday: {
+    total: number;
+    byProduct: { market: number; cared: number };
+  };
+  change: { total: number; market: number; cared: number };
+  cared: {
+    stats: {
+      total: number;
+      byState: { opened: number; closed: number };
+      byTag: Record<string, number>;
+      aiRate: number;
+    };
+    topTags: { tag: string; count: number }[];
+  };
+  market: {
+    stats: {
+      total: number;
+      byState: { opened: number; closed: number };
+      byTag: Record<string, number>;
+      aiRate: number;
+    };
+    topTags: { tag: string; count: number }[];
+  };
 }
 
 export default function Dashboard() {
-  const [data, setData] = useState<DashboardData | null>(null)
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
+  const [stats, setStats] = useState<Stats | null>(null);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    fetchData()
-    const interval = setInterval(fetchData, 60000) // 1분마다 갱신
-    return () => clearInterval(interval)
-  }, [])
+    fetch('/api/stats')
+      .then(res => res.json())
+      .then(data => {
+        setStats(data);
+        setLoading(false);
+      })
+      .catch(() => setLoading(false));
+  }, []);
 
-  async function fetchData() {
-    try {
-      const res = await fetch('/api/stats')
-      if (!res.ok) throw new Error('Failed to fetch')
-      const json = await res.json()
-      setData(json)
-      setError(null)
-    } catch (e) {
-      setError('데이터를 불러오는데 실패했습니다')
-    } finally {
-      setLoading(false)
-    }
-  }
+  const today = new Date().toLocaleDateString('ko-KR', {
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit'
+  }).replace(/\. /g, '.').replace('.', '');
 
-  if (loading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="text-gray-400">로딩 중...</div>
-      </div>
-    )
-  }
+  const formatChange = (value: number) => {
+    if (value > 0) return `+${value.toFixed(1)}%`;
+    return `${value.toFixed(1)}%`;
+  };
 
-  if (error || !data) {
-    return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="text-red-400">{error || '데이터 없음'}</div>
-      </div>
-    )
-  }
-
-  const formatTime = (min: number) => {
-    if (min < 1) return `${Math.round(min * 60)}초`
-    return `${Math.round(min)}분`
-  }
+  const getChangeColor = (value: number) => {
+    if (value > 0) return 'text-red-400';
+    if (value < 0) return 'text-green-400';
+    return 'text-gray-400';
+  };
 
   return (
-    <main className="min-h-screen p-6 max-w-7xl mx-auto">
+    <div className="min-h-screen bg-gradient-to-br from-purple-600 via-blue-500 to-purple-700 p-6">
       {/* Header */}
-      <div className="flex justify-between items-center mb-6">
-        <h1 className="text-2xl font-bold">📊 차란 CX 실시간 대시보드</h1>
-        <div className="text-gray-500 text-sm">
-          마지막 업데이트: {new Date(data.generatedAt).toLocaleTimeString('ko-KR')}
-        </div>
+      <div className="mb-6">
+        <h1 className="text-2xl font-bold text-white flex items-center gap-2">
+          <span className="text-3xl">■</span>
+          차란 CX 실시간 대시보드 
+          <span className="text-yellow-300">({today})</span>
+        </h1>
+        <p className="text-white/70 text-sm mt-1">채널톡 고객응대 현황 - Daily</p>
       </div>
 
-      {/* 케어드 섹션 */}
-      <section className="mb-8">
-        <h2 className="text-lg font-semibold text-blue-400 mb-4">📦 케어드 태그 분석</h2>
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4">
-          <StatCard 
-            title="오늘 총 문의" 
-            value={data.cared.stats.total} 
-            change={data.change.cared}
-          />
-          <StatCard title="어제 총 문의" value={data.yesterday.byProduct.cared} />
-          <StatCard 
-            title="문의 응대중" 
-            value={data.cared.stats.byState.opened}
-            subValue={`종료: ${data.cared.stats.byState.closed}`}
-          />
-          <StatCard 
-            title="평균 응답시간" 
-            value={formatTime(data.cared.stats.avgFirstResponseTimeMin)}
-          />
-        </div>
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <TagList tags={data.cared.topTags} title="상위 10개 태그 분석" />
-          <ManagerStats managers={data.cared.stats.byManager} />
-          <HourlyChart byHour={data.cared.stats.byHour} />
-        </div>
-      </section>
+      {/* Main Grid */}
+      <div className="grid grid-cols-12 gap-4">
+        {/* Left Sidebar - 케어드 태그 분석 */}
+        <div className="col-span-2">
+          <div className="bg-gray-900/90 rounded-xl p-4 text-white">
+            <h2 className="text-lg font-semibold mb-4 flex items-center gap-2">
+              📦 케어드 태그 분석
+            </h2>
+            
+            <div className="grid grid-cols-2 gap-2 mb-2">
+              <div className="bg-gray-800 rounded-lg p-3">
+                <p className="text-xs text-gray-400">오늘 총 문의</p>
+                <p className="text-xl font-bold text-cyan-400">
+                  {loading ? '-' : stats?.cared.stats.total || 0}
+                </p>
+              </div>
+              <div className="bg-gray-800 rounded-lg p-3">
+                <p className="text-xs text-gray-400">어제 총 문의</p>
+                <p className="text-xl font-bold">
+                  {loading ? '-' : stats?.yesterday.byProduct.cared || 0}
+                </p>
+              </div>
+            </div>
+            
+            <div className="grid grid-cols-2 gap-2 mb-4">
+              <div className="bg-gray-800 rounded-lg p-3">
+                <p className="text-xs text-gray-400">증감율</p>
+                <p className={`text-xl font-bold ${stats ? getChangeColor(stats.change.cared) : ''}`}>
+                  {loading ? '-' : formatChange(stats?.change.cared || 0)}
+                </p>
+              </div>
+              <div className="bg-gray-800 rounded-lg p-3">
+                <p className="text-xs text-gray-400">AI 처리율</p>
+                <p className="text-xl font-bold text-cyan-400">
+                  {loading ? '-' : `${stats?.cared.stats.aiRate || 0}%`}
+                </p>
+              </div>
+            </div>
 
-      {/* 마켓 섹션 */}
-      <section>
-        <h2 className="text-lg font-semibold text-green-400 mb-4">🛍️ 마켓 태그 분석</h2>
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4">
-          <StatCard 
-            title="오늘 총 문의" 
-            value={data.market.stats.total}
-            change={data.change.market}
-          />
-          <StatCard title="어제 총 문의" value={data.yesterday.byProduct.market} />
-          <StatCard 
-            title="문의 응대중" 
-            value={data.market.stats.byState.opened}
-            subValue={`종료: ${data.market.stats.byState.closed}`}
-          />
-          <StatCard 
-            title="평균 응답시간" 
-            value={formatTime(data.market.stats.avgFirstResponseTimeMin)}
-          />
+            <h3 className="text-sm font-semibold mb-2">상위 10개 태그 분석</h3>
+            <div className="space-y-1 text-xs">
+              {loading ? (
+                <p className="text-gray-500">로딩 중...</p>
+              ) : (
+                stats?.cared.topTags.slice(0, 10).map((tag, i) => (
+                  <div key={i} className="flex justify-between bg-gray-800/50 px-2 py-1 rounded">
+                    <span className="truncate flex-1">{tag.tag}</span>
+                    <span className="text-cyan-400 ml-2">{tag.count}</span>
+                  </div>
+                ))
+              )}
+            </div>
+          </div>
         </div>
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <TagList tags={data.market.topTags} title="상위 10개 태그 분석" />
-          <ManagerStats managers={data.market.stats.byManager} />
-          <HourlyChart byHour={data.market.stats.byHour} />
+
+        {/* Center Content */}
+        <div className="col-span-8 space-y-4">
+          {/* Top Stats Row */}
+          <div className="grid grid-cols-5 gap-4">
+            <div className="bg-white rounded-xl p-4 shadow-lg">
+              <p className="text-gray-500 text-sm">문의건수</p>
+              <p className="text-3xl font-bold text-blue-600">
+                {loading ? '-' : stats?.today.total || 0}
+              </p>
+            </div>
+            <div className="bg-white rounded-xl p-4 shadow-lg">
+              <p className="text-gray-500 text-sm">문의 응대중</p>
+              <p className="text-3xl font-bold text-orange-500">
+                {loading ? '-' : stats?.today.byState.opened || 0}
+              </p>
+            </div>
+            <div className="bg-white rounded-xl p-4 shadow-lg">
+              <p className="text-gray-500 text-sm">문의종료</p>
+              <p className="text-3xl font-bold text-green-600">
+                {loading ? '-' : stats?.today.byState.closed || 0}
+              </p>
+            </div>
+            <div className="bg-white rounded-xl p-4 shadow-lg">
+              <p className="text-gray-500 text-sm">AI 응답건수/응답률</p>
+              <p className="text-3xl font-bold text-purple-600">
+                {loading ? '-' : `${stats?.today.aiRate || 0}%`}
+              </p>
+            </div>
+            <div className="bg-white rounded-xl p-4 shadow-lg">
+              <p className="text-gray-500 text-sm">평균 응답시간</p>
+              <p className="text-3xl font-bold text-cyan-600">
+                {loading ? '-' : `${(stats?.today.avgFirstResponseTimeMin || 0).toFixed(1)}분`}
+              </p>
+            </div>
+          </div>
+
+          {/* Middle Row - Charts */}
+          <div className="grid grid-cols-2 gap-4">
+            <div className="bg-white rounded-xl p-4 shadow-lg min-h-[200px]">
+              <h3 className="text-gray-700 font-semibold mb-3">시간대별 대화량</h3>
+              {loading ? (
+                <div className="flex items-center justify-center h-32">
+                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500"></div>
+                  <span className="ml-2 text-gray-500">데이터 로딩 중...</span>
+                </div>
+              ) : (
+                <div className="flex items-end gap-1 h-32">
+                  {Array.from({ length: 24 }, (_, i) => {
+                    const count = stats?.today.byHour[i.toString()] || 0;
+                    const max = Math.max(...Object.values(stats?.today.byHour || { '0': 1 }));
+                    const height = max > 0 ? (count / max) * 100 : 0;
+                    return (
+                      <div key={i} className="flex-1 flex flex-col items-center">
+                        <div
+                          className="w-full bg-blue-400 rounded-t"
+                          style={{ height: `${height}%`, minHeight: count > 0 ? '4px' : '0' }}
+                          title={`${i}시: ${count}건`}
+                        />
+                        {i % 4 === 0 && (
+                          <span className="text-[10px] text-gray-400 mt-1">{i}</span>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+            
+            <div className="bg-white rounded-xl p-4 shadow-lg min-h-[200px]">
+              <h3 className="text-gray-700 font-semibold mb-3">팀원별 처리 현황</h3>
+              {loading ? (
+                <div className="flex items-center justify-center h-32">
+                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500"></div>
+                  <span className="ml-2 text-gray-500">데이터 로딩 중...</span>
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  {Object.entries(stats?.today.byManager || {}).map(([name, count]) => {
+                    const total = Object.values(stats?.today.byManager || {}).reduce((a, b) => a + b, 0);
+                    const pct = total > 0 ? (count / total) * 100 : 0;
+                    return (
+                      <div key={name}>
+                        <div className="flex justify-between text-sm mb-1">
+                          <span className="font-medium">{name}</span>
+                          <span className="text-gray-500">{count}건 ({pct.toFixed(0)}%)</span>
+                        </div>
+                        <div className="w-full bg-gray-200 rounded-full h-2">
+                          <div
+                            className="bg-gradient-to-r from-blue-400 to-purple-500 h-2 rounded-full"
+                            style={{ width: `${pct}%` }}
+                          />
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* Bottom Row - 케어드/마켓 문의 */}
+          <div className="grid grid-cols-2 gap-4">
+            <div className="bg-white rounded-xl p-4 shadow-lg">
+              <h3 className="text-gray-700 font-semibold mb-3">케어드 문의</h3>
+              <p className="text-4xl font-bold text-blue-600">
+                {loading ? '-' : stats?.cared.stats.total || 0}
+              </p>
+              <div className="mt-2 text-sm text-gray-500">
+                <span className="text-green-500">완료: {stats?.cared.stats.byState.closed || 0}</span>
+                <span className="mx-2">|</span>
+                <span className="text-orange-500">진행중: {stats?.cared.stats.byState.opened || 0}</span>
+              </div>
+            </div>
+            
+            <div className="bg-white rounded-xl p-4 shadow-lg">
+              <h3 className="text-gray-700 font-semibold mb-3">마켓 문의</h3>
+              <p className="text-4xl font-bold text-purple-600">
+                {loading ? '-' : stats?.market.stats.total || 0}
+              </p>
+              <div className="mt-2 text-sm text-gray-500">
+                <span className="text-green-500">완료: {stats?.market.stats.byState.closed || 0}</span>
+                <span className="mx-2">|</span>
+                <span className="text-orange-500">진행중: {stats?.market.stats.byState.opened || 0}</span>
+              </div>
+            </div>
+          </div>
         </div>
-      </section>
-    </main>
-  )
+
+        {/* Right Sidebar - 마켓 태그 분석 */}
+        <div className="col-span-2">
+          <div className="bg-gray-900/90 rounded-xl p-4 text-white">
+            <h2 className="text-lg font-semibold mb-4 flex items-center gap-2">
+              🛍️ 마켓 태그 분석
+            </h2>
+            
+            <div className="grid grid-cols-2 gap-2 mb-2">
+              <div className="bg-gray-800 rounded-lg p-3">
+                <p className="text-xs text-gray-400">오늘 총 문의</p>
+                <p className="text-xl font-bold text-green-400">
+                  {loading ? '-' : stats?.market.stats.total || 0}
+                </p>
+              </div>
+              <div className="bg-gray-800 rounded-lg p-3">
+                <p className="text-xs text-gray-400">어제 총 문의</p>
+                <p className="text-xl font-bold">
+                  {loading ? '-' : stats?.yesterday.byProduct.market || 0}
+                </p>
+              </div>
+            </div>
+            
+            <div className="grid grid-cols-2 gap-2 mb-4">
+              <div className="bg-gray-800 rounded-lg p-3">
+                <p className="text-xs text-gray-400">증감율</p>
+                <p className={`text-xl font-bold ${stats ? getChangeColor(stats.change.market) : ''}`}>
+                  {loading ? '-' : formatChange(stats?.change.market || 0)}
+                </p>
+              </div>
+              <div className="bg-gray-800 rounded-lg p-3">
+                <p className="text-xs text-gray-400">AI 처리율</p>
+                <p className="text-xl font-bold text-green-400">
+                  {loading ? '-' : `${stats?.market.stats.aiRate || 0}%`}
+                </p>
+              </div>
+            </div>
+
+            <h3 className="text-sm font-semibold mb-2">상위 10개 태그 분석</h3>
+            <div className="space-y-1 text-xs">
+              {loading ? (
+                <p className="text-gray-500">로딩 중...</p>
+              ) : (
+                stats?.market.topTags.slice(0, 10).map((tag, i) => (
+                  <div key={i} className="flex justify-between bg-gray-800/50 px-2 py-1 rounded">
+                    <span className="truncate flex-1">{tag.tag}</span>
+                    <span className="text-green-400 ml-2">{tag.count}</span>
+                  </div>
+                ))
+              )}
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
 }
