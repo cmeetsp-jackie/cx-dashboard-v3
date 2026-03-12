@@ -233,9 +233,11 @@ export default function Dashboard() {
           {/* Top Stats Row */}
           <div className="grid grid-cols-5 gap-4">
             <div className="bg-white rounded-xl p-4 shadow-lg">
-              <p className="text-gray-500 text-sm">오늘 문의건수</p>
-              <p className="text-3xl font-bold text-blue-600">
-                {loading ? '-' : stats?.today.total || 0}
+              <p className="text-gray-500 text-sm">오늘 문의건수 / 어제 문의건수</p>
+              <p className="text-3xl font-bold">
+                <span className="text-blue-600">{loading ? '-' : stats?.today.total || 0}</span>
+                <span className="text-gray-400 mx-1">/</span>
+                <span className="text-gray-500">{loading ? '-' : stats?.yesterday.total || 0}</span>
               </p>
             </div>
             <div className="bg-white rounded-xl p-4 shadow-lg">
