@@ -45,18 +45,30 @@ interface Stats {
   };
 }
 
+// 주간 데이터 정의
+const WEEKS = [
+  { id: 'week1', label: 'Week 1 (3/4~3/10)', start: '2026-03-04', end: '2026-03-10' },
+];
+
 export default function Dashboard() {
   const [stats, setStats] = useState<Stats | null>(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [lastUpdated, setLastUpdated] = useState<string>('');
+  const [activeTab, setActiveTab] = useState<'daily' | 'weekly'>('daily');
+  const [selectedWeek, setSelectedWeek] = useState(WEEKS[0]);
 
-  const fetchData = async (isManualRefresh = false) => {
+  const fetchData = async (isManualRefresh = false, tab = activeTab, week = selectedWeek) => {
     if (isManualRefresh) {
       setRefreshing(true);
     }
+    setLoading(true);
     try {
-      const res = await fetch('/api/stats');
+      let url = '/api/stats';
+      if (tab === 'weekly') {
+        url = `/api/stats?period=weekly&weekStart=${week.start}&weekEnd=${week.end}`;
+      }
+      const res = await fetch(url);
       const data = await res.json();
       setStats(data);
       setLoading(false);
@@ -84,12 +96,24 @@ export default function Dashboard() {
     fetchData(true);
   };
 
+  const handleTabChange = (tab: 'daily' | 'weekly') => {
+    setActiveTab(tab);
+    fetchData(false, tab, selectedWeek);
+  };
+
+  const handleWeekChange = (week: typeof WEEKS[0]) => {
+    setSelectedWeek(week);
+    fetchData(false, 'weekly', week);
+  };
+
   useEffect(() => {
     // 초기 로드
     fetchData();
     
-    // 20분마다 자동 새로고침
-    const interval = setInterval(fetchData, 20 * 60 * 1000);
+    // 20분마다 자동 새로고침 (daily 탭일 때만)
+    const interval = setInterval(() => {
+      if (activeTab === 'daily') fetchData();
+    }, 20 * 60 * 1000);
     return () => clearInterval(interval);
   }, []);
 
@@ -100,6 +124,9 @@ export default function Dashboard() {
     month: '2-digit',
     day: '2-digit'
   }).replace(/\. /g, '.').replace(/\.$/, '');
+
+  // 표시할 날짜/기간
+  const displayPeriod = activeTab === 'daily' ? today : selectedWeek.label;
 
   const formatChange = (value: number) => {
     if (value > 0) return `+${value.toFixed(1)}%`;
@@ -115,20 +142,19 @@ export default function Dashboard() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-purple-600 via-blue-500 to-purple-700 p-6">
       {/* Header */}
-      <div className="mb-6">
+      <div className="mb-4">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-4">
             <h1 className="text-2xl font-bold text-white flex items-center gap-2">
               <span className="text-3xl">■</span>
-              차란 CX 실시간 대시보드 
-              <span className="text-yellow-300">({today})</span>
+              차란 CX 대시보드
             </h1>
             {/* CX 팀원 아바타 */}
             <div className="flex items-center gap-3 ml-4">
-              <img src="/team/joy.png" alt="Joy" className="w-20 h-20 rounded-full object-cover border-2 border-white/50" title="Joy" />
-              <img src="/team/sara.png" alt="Sara" className="w-20 h-20 rounded-full object-cover border-2 border-white/50" title="Sara" />
-              <img src="/team/sia.png" alt="Sia" className="w-20 h-20 rounded-full object-cover border-2 border-white/50" title="Sia" />
-              <img src="/team/jacky.png" alt="Jacky" className="w-20 h-20 rounded-full object-cover border-2 border-white/50" title="Jacky" />
+              <img src="/team/joy.png" alt="Joy" className="w-16 h-16 rounded-full object-cover border-2 border-white/50" title="Joy" />
+              <img src="/team/sara.png" alt="Sara" className="w-16 h-16 rounded-full object-cover border-2 border-white/50" title="Sara" />
+              <img src="/team/sia.png" alt="Sia" className="w-16 h-16 rounded-full object-cover border-2 border-white/50" title="Sia" />
+              <img src="/team/jacky.png" alt="Jacky" className="w-16 h-16 rounded-full object-cover border-2 border-white/50" title="Jacky" />
             </div>
           </div>
           <div className="flex items-center gap-3 text-white/80 text-sm">
@@ -158,7 +184,55 @@ export default function Dashboard() {
             </button>
           </div>
         </div>
-        <p className="text-white/70 text-sm mt-1">채널톡 고객응대 현황 - Daily</p>
+        {/* 탭 UI */}
+        <div className="flex items-center gap-4 mt-3">
+          <div className="flex bg-white/10 rounded-lg p-1">
+            <button
+              onClick={() => handleTabChange('daily')}
+              className={`px-4 py-2 rounded-md text-sm font-medium transition-all ${
+                activeTab === 'daily'
+                  ? 'bg-white text-purple-700'
+                  : 'text-white hover:bg-white/10'
+              }`}
+            >
+              📅 Daily
+            </button>
+            <button
+              onClick={() => handleTabChange('weekly')}
+              className={`px-4 py-2 rounded-md text-sm font-medium transition-all ${
+                activeTab === 'weekly'
+                  ? 'bg-white text-purple-700'
+                  : 'text-white hover:bg-white/10'
+              }`}
+            >
+              📊 Weekly
+            </button>
+          </div>
+          
+          {/* Weekly 탭일 때 주간 선택 */}
+          {activeTab === 'weekly' && (
+            <div className="flex gap-2">
+              {WEEKS.map((week) => (
+                <button
+                  key={week.id}
+                  onClick={() => handleWeekChange(week)}
+                  className={`px-3 py-1.5 rounded-md text-sm transition-all ${
+                    selectedWeek.id === week.id
+                      ? 'bg-yellow-400 text-gray-900 font-semibold'
+                      : 'bg-white/20 text-white hover:bg-white/30'
+                  }`}
+                >
+                  {week.label}
+                </button>
+              ))}
+            </div>
+          )}
+          
+          {/* 현재 기간 표시 */}
+          <span className="text-yellow-300 font-semibold ml-2">
+            {displayPeriod}
+          </span>
+        </div>
       </div>
 
       {/* 응답률 & 해결률 - 상단 대형 카드 */}

@@ -193,14 +193,59 @@ function calculateStats(chats: Chat[]) {
   return stats
 }
 
-export async function GET() {
+function getWeekRange(weekStart: string, weekEnd: string): [number, number] {
+  // weekStart, weekEnd는 'YYYY-MM-DD' 형식
+  const kstOffset = 9 * 60 * 60 * 1000
+  
+  const [sy, sm, sd] = weekStart.split('-').map(Number)
+  const [ey, em, ed] = weekEnd.split('-').map(Number)
+  
+  const start = Date.UTC(sy, sm - 1, sd, 0, 0, 0) - kstOffset
+  const end = Date.UTC(ey, em - 1, ed, 23, 59, 59, 999) - kstOffset
+  
+  return [start, end]
+}
+
+function getPrevWeekRange(weekStart: string, weekEnd: string): [number, number] {
+  const kstOffset = 9 * 60 * 60 * 1000
+  
+  const [sy, sm, sd] = weekStart.split('-').map(Number)
+  const [ey, em, ed] = weekEnd.split('-').map(Number)
+  
+  // 7일 전
+  const startDate = new Date(Date.UTC(sy, sm - 1, sd))
+  startDate.setUTCDate(startDate.getUTCDate() - 7)
+  
+  const endDate = new Date(Date.UTC(ey, em - 1, ed))
+  endDate.setUTCDate(endDate.getUTCDate() - 7)
+  
+  const start = Date.UTC(startDate.getUTCFullYear(), startDate.getUTCMonth(), startDate.getUTCDate(), 0, 0, 0) - kstOffset
+  const end = Date.UTC(endDate.getUTCFullYear(), endDate.getUTCMonth(), endDate.getUTCDate(), 23, 59, 59, 999) - kstOffset
+  
+  return [start, end]
+}
+
+export async function GET(request: Request) {
   try {
-    const [todayStart, todayEnd] = getTodayRange()
-    const [yesterdayStart, yesterdayEnd] = getYesterdayRange()
+    const { searchParams } = new URL(request.url)
+    const period = searchParams.get('period') || 'daily'
+    const weekStart = searchParams.get('weekStart')
+    const weekEnd = searchParams.get('weekEnd')
+
+    let currentStart: number, currentEnd: number
+    let prevStart: number, prevEnd: number
+
+    if (period === 'weekly' && weekStart && weekEnd) {
+      [currentStart, currentEnd] = getWeekRange(weekStart, weekEnd)
+      ;[prevStart, prevEnd] = getPrevWeekRange(weekStart, weekEnd)
+    } else {
+      [currentStart, currentEnd] = getTodayRange()
+      ;[prevStart, prevEnd] = getYesterdayRange()
+    }
 
     const [todayChats, yesterdayChats] = await Promise.all([
-      fetchAllChats(todayStart, todayEnd),
-      fetchAllChats(yesterdayStart, yesterdayEnd),
+      fetchAllChats(currentStart, currentEnd),
+      fetchAllChats(prevStart, prevEnd),
     ])
 
     const todayStats = calculateStats(todayChats)
