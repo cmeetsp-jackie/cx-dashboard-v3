@@ -768,91 +768,158 @@ export default function Dashboard() {
         </div>
       </div>
 
-      {/* 주간 트래커 - 하단 동그라미 7개 */}
+      {/* 주간 트래커 - 하단 동그라미 14개 (1차 해결률 7개 + 해결률&해결시간 7개) */}
       {activeTab !== 'weekly' && (
         <div className="-mt-2 py-2">
-          <h3 className="text-white font-bold mb-3 text-center text-lg">📅 이번 주 해결률 & 해결시간 트래커 (3/11 ~ 3/17)</h3>
-          <div className="flex justify-center items-end gap-6">
-            {(() => {
-              const weekDays = [
-                { date: '3/11', day: '화' },
-                { date: '3/12', day: '수' },
-                { date: '3/13', day: '목' },
-                { date: '3/14', day: '금' },
-                { date: '3/15', day: '토' },
-                { date: '3/16', day: '일' },
-                { date: '3/17', day: '월' },
-              ];
-              
-              // 오늘 날짜 계산 (KST)
-              const kstNow = new Date(new Date().getTime() + 9 * 60 * 60 * 1000);
-              const todayDate = kstNow.getUTCDate();
-              const todayMonth = kstNow.getUTCMonth() + 1;
-              const todayStr = `${todayMonth}/${todayDate}`;
-              
-              // 어제 날짜 계산
-              const yesterdayDate = todayDate - 1;
-              const yesterdayStr = `${todayMonth}/${yesterdayDate}`;
-              
-              return weekDays.map((item, idx) => {
-                const isToday = item.date === todayStr;
-                const isYesterday = item.date === yesterdayStr;
-                const isPast = (() => {
-                  const [m, d] = item.date.split('/').map(Number);
-                  if (todayMonth > m) return true;
-                  if (todayMonth === m && todayDate > d) return true;
-                  return false;
-                })();
-                
-                // 데이터 결정
-                let resolutionRate: string | number = '-';
-                let resolutionTime: string | number = '-';
-                
-                if (isToday) {
-                  resolutionRate = stats?.today.resolutionRate || 0;
-                  resolutionTime = (stats?.today.avgResolutionTimeMin || 0).toFixed(0);
-                } else if (isYesterday) {
-                  resolutionRate = stats?.yesterday.resolutionRate || 0;
-                  resolutionTime = (stats?.yesterday.avgResolutionTimeMin || 0).toFixed(0);
-                }
-                
-                return (
-                  <div key={idx} className="flex flex-col items-center">
-                    {/* TODAY 뱃지 */}
-                    {isToday && (
-                      <span className="bg-rose-500 text-white text-xs font-bold px-2 py-0.5 rounded-full mb-2 animate-pulse">
-                        TODAY
-                      </span>
-                    )}
-                    {!isToday && <div className="h-6 mb-2"></div>}
+          <div className="flex justify-center items-start gap-8">
+            {/* 1차 해결률 트래커 (7개) */}
+            <div className="flex flex-col items-center">
+              <h3 className="text-white font-bold mb-3 text-center text-lg">🎯 1차 해결률 (3/11 ~ 3/17)</h3>
+              <div className="flex items-end gap-4">
+                {(() => {
+                  const weekDays = [
+                    { date: '3/11', day: '화' },
+                    { date: '3/12', day: '수' },
+                    { date: '3/13', day: '목' },
+                    { date: '3/14', day: '금' },
+                    { date: '3/15', day: '토' },
+                    { date: '3/16', day: '일' },
+                    { date: '3/17', day: '월' },
+                  ];
+                  
+                  // 1차 해결률 데이터 (하드코딩 - 추후 API 연동)
+                  const firstResolutionData: Record<string, { rate: number; assigned: number }> = {
+                    '3/11': { rate: 18.1, assigned: 149 },
+                    '3/12': { rate: 6.1, assigned: 132 },
+                  };
+                  
+                  const kstNow = new Date(new Date().getTime() + 9 * 60 * 60 * 1000);
+                  const todayDate = kstNow.getUTCDate();
+                  const todayMonth = kstNow.getUTCMonth() + 1;
+                  const todayStr = `${todayMonth}/${todayDate}`;
+                  
+                  return weekDays.map((item, idx) => {
+                    const isToday = item.date === todayStr;
+                    const data = firstResolutionData[item.date];
+                    const hasData = !!data;
+                    const isPast = (() => {
+                      const [m, d] = item.date.split('/').map(Number);
+                      if (todayMonth > m) return true;
+                      if (todayMonth === m && todayDate > d) return true;
+                      return false;
+                    })();
                     
-                    {/* 동그라미 */}
-                    <div className={`w-20 h-20 rounded-full flex flex-col items-center justify-center shadow-lg border-4 ${
-                      isToday 
-                        ? 'bg-gradient-to-br from-rose-500 to-pink-600 border-rose-300 text-white' 
-                        : isYesterday
-                          ? 'bg-gradient-to-br from-indigo-500 to-purple-600 border-indigo-300 text-white'
-                          : isPast 
-                            ? 'bg-gradient-to-br from-gray-400 to-gray-500 border-gray-300 text-white'
-                            : 'bg-gradient-to-br from-gray-600 to-gray-700 border-gray-500 text-gray-300'
-                    }`}>
-                      <span className="text-lg font-bold">{resolutionRate !== '-' ? `${resolutionRate}%` : '-'}</span>
-                      <span className="text-xs">{resolutionTime !== '-' ? `${resolutionTime}분` : '-'}</span>
-                    </div>
+                    return (
+                      <div key={idx} className="flex flex-col items-center">
+                        {isToday && (
+                          <span className="bg-emerald-500 text-white text-xs font-bold px-2 py-0.5 rounded-full mb-2 animate-pulse">
+                            TODAY
+                          </span>
+                        )}
+                        {!isToday && <div className="h-6 mb-2"></div>}
+                        
+                        <div className={`w-16 h-16 rounded-full flex flex-col items-center justify-center shadow-lg border-4 ${
+                          isToday 
+                            ? 'bg-gradient-to-br from-emerald-500 to-teal-600 border-emerald-300 text-white' 
+                            : hasData
+                              ? 'bg-gradient-to-br from-cyan-500 to-blue-600 border-cyan-300 text-white'
+                              : isPast 
+                                ? 'bg-gradient-to-br from-gray-400 to-gray-500 border-gray-300 text-white'
+                                : 'bg-gradient-to-br from-gray-600 to-gray-700 border-gray-500 text-gray-300'
+                        }`}>
+                          <span className="text-sm font-bold">{hasData ? `${data.rate}%` : '-'}</span>
+                          <span className="text-[10px]">{hasData ? `${data.assigned}건` : '-'}</span>
+                        </div>
+                        
+                        <span className={`mt-1 text-xs font-medium ${isToday ? 'text-emerald-300' : 'text-white/80'}`}>
+                          {item.date}
+                        </span>
+                      </div>
+                    );
+                  });
+                })()}
+              </div>
+              <p className="text-center text-white/50 text-[10px] mt-2">* 1차 해결률(%) / 담당자 배정건</p>
+            </div>
+
+            {/* 구분선 */}
+            <div className="h-32 w-px bg-white/30 self-center"></div>
+
+            {/* 해결률 & 해결시간 트래커 (7개) */}
+            <div className="flex flex-col items-center">
+              <h3 className="text-white font-bold mb-3 text-center text-lg">📅 해결률 & 해결시간 (3/11 ~ 3/17)</h3>
+              <div className="flex items-end gap-4">
+                {(() => {
+                  const weekDays = [
+                    { date: '3/11', day: '화' },
+                    { date: '3/12', day: '수' },
+                    { date: '3/13', day: '목' },
+                    { date: '3/14', day: '금' },
+                    { date: '3/15', day: '토' },
+                    { date: '3/16', day: '일' },
+                    { date: '3/17', day: '월' },
+                  ];
+                  
+                  const kstNow = new Date(new Date().getTime() + 9 * 60 * 60 * 1000);
+                  const todayDate = kstNow.getUTCDate();
+                  const todayMonth = kstNow.getUTCMonth() + 1;
+                  const todayStr = `${todayMonth}/${todayDate}`;
+                  const yesterdayStr = `${todayMonth}/${todayDate - 1}`;
+                  
+                  return weekDays.map((item, idx) => {
+                    const isToday = item.date === todayStr;
+                    const isYesterday = item.date === yesterdayStr;
+                    const isPast = (() => {
+                      const [m, d] = item.date.split('/').map(Number);
+                      if (todayMonth > m) return true;
+                      if (todayMonth === m && todayDate > d) return true;
+                      return false;
+                    })();
                     
-                    {/* 날짜 */}
-                    <span className={`mt-2 text-sm font-medium ${isToday ? 'text-rose-300' : 'text-white/80'}`}>
-                      {item.date}
-                    </span>
-                    <span className={`text-xs ${isToday ? 'text-rose-200' : 'text-white/60'}`}>
-                      ({item.day})
-                    </span>
-                  </div>
-                );
-              });
-            })()}
+                    let resolutionRate: string | number = '-';
+                    let resolutionTime: string | number = '-';
+                    
+                    if (isToday) {
+                      resolutionRate = stats?.today.resolutionRate || 0;
+                      resolutionTime = (stats?.today.avgResolutionTimeMin || 0).toFixed(0);
+                    } else if (isYesterday) {
+                      resolutionRate = stats?.yesterday.resolutionRate || 0;
+                      resolutionTime = (stats?.yesterday.avgResolutionTimeMin || 0).toFixed(0);
+                    }
+                    
+                    return (
+                      <div key={idx} className="flex flex-col items-center">
+                        {isToday && (
+                          <span className="bg-rose-500 text-white text-xs font-bold px-2 py-0.5 rounded-full mb-2 animate-pulse">
+                            TODAY
+                          </span>
+                        )}
+                        {!isToday && <div className="h-6 mb-2"></div>}
+                        
+                        <div className={`w-16 h-16 rounded-full flex flex-col items-center justify-center shadow-lg border-4 ${
+                          isToday 
+                            ? 'bg-gradient-to-br from-rose-500 to-pink-600 border-rose-300 text-white' 
+                            : isYesterday
+                              ? 'bg-gradient-to-br from-indigo-500 to-purple-600 border-indigo-300 text-white'
+                              : isPast 
+                                ? 'bg-gradient-to-br from-gray-400 to-gray-500 border-gray-300 text-white'
+                                : 'bg-gradient-to-br from-gray-600 to-gray-700 border-gray-500 text-gray-300'
+                        }`}>
+                          <span className="text-sm font-bold">{resolutionRate !== '-' ? `${resolutionRate}%` : '-'}</span>
+                          <span className="text-[10px]">{resolutionTime !== '-' ? `${resolutionTime}분` : '-'}</span>
+                        </div>
+                        
+                        <span className={`mt-1 text-xs font-medium ${isToday ? 'text-rose-300' : 'text-white/80'}`}>
+                          {item.date}
+                        </span>
+                      </div>
+                    );
+                  });
+                })()}
+              </div>
+              <p className="text-center text-white/50 text-[10px] mt-2">* 해결률(%) / 평균해결시간(분)</p>
+            </div>
           </div>
-          <p className="text-center text-white/50 text-xs mt-3">* 해결률(%) / 평균해결시간(분)</p>
         </div>
       )}
     </div>
