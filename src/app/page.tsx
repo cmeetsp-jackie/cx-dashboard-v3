@@ -49,20 +49,77 @@ interface Stats {
   };
 }
 
-// 주간 데이터 정의
-const WEEKS = [
-  { id: 'week1', label: 'Week 1 (3/4~3/10)', start: '2026-03-04', end: '2026-03-10' },
-];
+// 날짜 유틸리티
+function getKSTDate(): Date {
+  return new Date(new Date().getTime() + 9 * 60 * 60 * 1000);
+}
+
+function formatDate(date: Date): string {
+  return date.toISOString().split('T')[0];
+}
+
+function formatDateLabel(dateStr: string): string {
+  const [year, month, day] = dateStr.split('-');
+  return `${year}.${month}.${day}`;
+}
+
+// 주간 시작일 계산 (화요일 기준)
+function getWeekStart(date: Date): Date {
+  const d = new Date(date);
+  const day = d.getUTCDay();
+  // 화요일(2)이 주 시작
+  const diff = day >= 2 ? day - 2 : day + 5;
+  d.setUTCDate(d.getUTCDate() - diff);
+  return d;
+}
+
+// 완료된 주간 목록 생성
+function getCompletedWeeks(): { id: string; label: string; start: string; end: string }[] {
+  const kstNow = getKSTDate();
+  const currentWeekStart = getWeekStart(kstNow);
+  const weeks = [];
+  
+  // Week 1: 3/4 ~ 3/10 (고정)
+  weeks.push({ id: 'week1', label: 'Week 1 (3/4~3/10)', start: '2026-03-04', end: '2026-03-10' });
+  
+  // Week 2: 3/11 ~ 3/17 (현재 주가 3/18 이후면 추가)
+  if (currentWeekStart >= new Date('2026-03-18')) {
+    weeks.push({ id: 'week2', label: 'Week 2 (3/11~3/17)', start: '2026-03-11', end: '2026-03-17' });
+  }
+  
+  return weeks;
+}
+
+// 현재 주의 일별 탭 생성 (주 시작일 ~ 어제)
+function getPastDailyTabs(): { date: string; label: string }[] {
+  const kstNow = getKSTDate();
+  const today = formatDate(kstNow);
+  const weekStart = getWeekStart(kstNow);
+  const tabs = [];
+  
+  const current = new Date(weekStart);
+  while (formatDate(current) < today) {
+    const dateStr = formatDate(current);
+    tabs.push({ date: dateStr, label: formatDateLabel(dateStr) });
+    current.setUTCDate(current.getUTCDate() + 1);
+  }
+  
+  return tabs;
+}
 
 export default function Dashboard() {
   const [stats, setStats] = useState<Stats | null>(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [lastUpdated, setLastUpdated] = useState<string>('');
-  const [activeTab, setActiveTab] = useState<'daily' | 'weekly'>('daily');
-  const [selectedWeek, setSelectedWeek] = useState(WEEKS[0]);
+  const [activeTab, setActiveTab] = useState<'daily' | 'pastDaily' | 'weekly'>('daily');
+  const [selectedDate, setSelectedDate] = useState<string>('');  // 과거 날짜 선택
+  const [selectedWeek, setSelectedWeek] = useState(getCompletedWeeks()[0]);
+  
+  const pastDailyTabs = getPastDailyTabs();
+  const completedWeeks = getCompletedWeeks();
 
-  const fetchData = async (isManualRefresh = false, tab = activeTab, week = selectedWeek) => {
+  const fetchData = async (isManualRefresh = false, tab = activeTab, week = selectedWeek, date = selectedDate) => {
     if (isManualRefresh) {
       setRefreshing(true);
     }
@@ -71,7 +128,11 @@ export default function Dashboard() {
       let url = '/api/stats';
       if (tab === 'weekly') {
         url = `/api/stats?period=weekly&weekStart=${week.start}&weekEnd=${week.end}`;
+      } else if (tab === 'pastDaily' && date) {
+        url = `/api/stats?period=pastDaily&date=${date}`;
       }
+      // tab === 'daily' → 기본 URL (오늘 데이터)
+      
       const res = await fetch(url);
       const data = await res.json();
       setStats(data);
@@ -79,8 +140,8 @@ export default function Dashboard() {
       
       // 업데이트 시간 설정 (KST)
       if (data.generatedAt) {
-        const date = new Date(data.generatedAt);
-        const kstTime = date.toLocaleString('ko-KR', {
+        const dateObj = new Date(data.generatedAt);
+        const kstTime = dateObj.toLocaleString('ko-KR', {
           timeZone: 'Asia/Seoul',
           hour: '2-digit',
           minute: '2-digit',
@@ -100,14 +161,24 @@ export default function Dashboard() {
     fetchData(true);
   };
 
-  const handleTabChange = (tab: 'daily' | 'weekly') => {
+  const handleTabChange = (tab: 'daily' | 'pastDaily' | 'weekly') => {
     setActiveTab(tab);
-    fetchData(false, tab, selectedWeek);
+    if (tab === 'daily') {
+      fetchData(false, tab, selectedWeek, '');
+    } else if (tab === 'weekly') {
+      fetchData(false, tab, selectedWeek, '');
+    }
   };
 
-  const handleWeekChange = (week: typeof WEEKS[0]) => {
+  const handlePastDailyChange = (date: string) => {
+    setSelectedDate(date);
+    setActiveTab('pastDaily');
+    fetchData(false, 'pastDaily', selectedWeek, date);
+  };
+
+  const handleWeekChange = (week: typeof completedWeeks[0]) => {
     setSelectedWeek(week);
-    fetchData(false, 'weekly', week);
+    fetchData(false, 'weekly', week, '');
   };
 
   useEffect(() => {
@@ -130,7 +201,11 @@ export default function Dashboard() {
   }).replace(/\. /g, '.').replace(/\.$/, '');
 
   // 표시할 날짜/기간
-  const displayPeriod = activeTab === 'daily' ? today : selectedWeek.label;
+  const displayPeriod = activeTab === 'daily' 
+    ? `오늘 (${today})` 
+    : activeTab === 'pastDaily' 
+      ? formatDateLabel(selectedDate)
+      : selectedWeek.label;
 
   const formatChange = (value: number) => {
     if (value > 0) return `+${value.toFixed(1)}%`;
@@ -189,7 +264,8 @@ export default function Dashboard() {
           </div>
         </div>
         {/* 탭 UI */}
-        <div className="flex items-center gap-4 mt-3">
+        <div className="flex items-center gap-4 mt-3 flex-wrap">
+          {/* Daily 탭 (오늘) */}
           <div className="flex bg-white/10 rounded-lg p-1">
             <button
               onClick={() => handleTabChange('daily')}
@@ -199,8 +275,31 @@ export default function Dashboard() {
                   : 'text-white hover:bg-white/10'
               }`}
             >
-              📅 Daily
+              📅 Daily (오늘)
             </button>
+          </div>
+          
+          {/* 과거 날짜 탭 (현재 주의 지난 날들) */}
+          {pastDailyTabs.length > 0 && (
+            <div className="flex gap-1 bg-white/10 rounded-lg p-1">
+              {pastDailyTabs.map((tab) => (
+                <button
+                  key={tab.date}
+                  onClick={() => handlePastDailyChange(tab.date)}
+                  className={`px-3 py-2 rounded-md text-sm transition-all ${
+                    activeTab === 'pastDaily' && selectedDate === tab.date
+                      ? 'bg-blue-400 text-white font-semibold'
+                      : 'text-white hover:bg-white/10'
+                  }`}
+                >
+                  {tab.label}
+                </button>
+              ))}
+            </div>
+          )}
+          
+          {/* Weekly 탭 */}
+          <div className="flex bg-white/10 rounded-lg p-1">
             <button
               onClick={() => handleTabChange('weekly')}
               className={`px-4 py-2 rounded-md text-sm font-medium transition-all ${
@@ -216,7 +315,7 @@ export default function Dashboard() {
           {/* Weekly 탭일 때 주간 선택 */}
           {activeTab === 'weekly' && (
             <div className="flex gap-2">
-              {WEEKS.map((week) => (
+              {completedWeeks.map((week) => (
                 <button
                   key={week.id}
                   onClick={() => handleWeekChange(week)}
@@ -245,7 +344,7 @@ export default function Dashboard() {
           <div className="flex items-center justify-between">
             <div className="flex-1">
               <div className="flex items-center gap-3">
-                <p className="text-white text-lg font-medium">{activeTab === 'daily' ? '오늘 응답률' : '주간 응답률'}</p>
+                <p className="text-white text-lg font-medium">{activeTab !== 'weekly' ? '오늘 응답률' : '주간 응답률'}</p>
               </div>
               <p className="text-white text-5xl font-bold mt-2">
                 {loading ? '-' : `${stats?.today.responseRate || 0}%`}
@@ -265,7 +364,7 @@ export default function Dashboard() {
           <div className="flex items-center justify-between">
             <div className="flex-1">
               <div className="flex items-center gap-3">
-                <p className="text-white text-lg font-medium">{activeTab === 'daily' ? '어제 해결률' : '전주 해결률'}</p>
+                <p className="text-white text-lg font-medium">{activeTab !== 'weekly' ? '어제 해결률' : '전주 해결률'}</p>
               </div>
               <p className="text-white text-5xl font-bold mt-2">
                 {loading ? '-' : `${stats?.yesterday.resolutionRate || 0}%`}
@@ -285,7 +384,7 @@ export default function Dashboard() {
           <div className="flex items-center justify-between">
             <div className="flex-1">
               <div className="flex items-center gap-3">
-                <p className="text-white text-lg font-medium">{activeTab === 'daily' ? '오늘 해결률' : '주간 해결률'}</p>
+                <p className="text-white text-lg font-medium">{activeTab !== 'weekly' ? '오늘 해결률' : '주간 해결률'}</p>
               </div>
               <p className="text-white text-5xl font-bold mt-2">
                 {loading ? '-' : `${stats?.today.resolutionRate || 0}%`}
@@ -313,13 +412,13 @@ export default function Dashboard() {
             
             <div className="grid grid-cols-2 gap-2 mb-2">
               <div className="bg-gray-800 rounded-lg p-3">
-                <p className="text-xs text-gray-400">{activeTab === 'daily' ? '오늘 총 문의' : '주간 총 문의'}</p>
+                <p className="text-xs text-gray-400">{activeTab !== 'weekly' ? '오늘 총 문의' : '주간 총 문의'}</p>
                 <p className="text-xl font-bold text-cyan-400">
                   {loading ? '-' : stats?.cared.stats.total || 0}
                 </p>
               </div>
               <div className="bg-gray-800 rounded-lg p-3">
-                <p className="text-xs text-gray-400">{activeTab === 'daily' ? '어제 총 문의' : '전주 총 문의'}</p>
+                <p className="text-xs text-gray-400">{activeTab !== 'weekly' ? '어제 총 문의' : '전주 총 문의'}</p>
                 <p className="text-xl font-bold">
                   {loading ? '-' : stats?.yesterday.byProduct.cared || 0}
                 </p>
@@ -362,7 +461,7 @@ export default function Dashboard() {
           {/* Top Stats Row */}
           <div className="grid grid-cols-6 gap-3">
             <div className="bg-white rounded-xl p-4 shadow-lg">
-              <p className="text-gray-500 text-sm">{activeTab === 'daily' ? '오늘 문의건수 / 어제' : '주간 문의건수 / 전주'}</p>
+              <p className="text-gray-500 text-sm">{activeTab !== 'weekly' ? '오늘 문의건수 / 어제' : '주간 문의건수 / 전주'}</p>
               <p className="text-2xl font-bold">
                 <span className="text-blue-600">{loading ? '-' : stats?.today.total || 0}</span>
                 <span className="text-gray-400 mx-1">/</span>
@@ -370,13 +469,13 @@ export default function Dashboard() {
               </p>
             </div>
             <div className="bg-white rounded-xl p-4 shadow-lg">
-              <p className="text-gray-500 text-sm">{activeTab === 'daily' ? '오늘 문의 응대중' : '문의 응대중'}</p>
+              <p className="text-gray-500 text-sm">{activeTab !== 'weekly' ? '오늘 문의 응대중' : '문의 응대중'}</p>
               <p className="text-2xl font-bold text-orange-500">
                 {loading ? '-' : stats?.today.byState.opened || 0}
               </p>
             </div>
             <div className="bg-white rounded-xl p-4 shadow-lg">
-              <p className="text-gray-500 text-sm">{activeTab === 'daily' ? '오늘 문의종료' : '주간 문의 종료'}</p>
+              <p className="text-gray-500 text-sm">{activeTab !== 'weekly' ? '오늘 문의종료' : '주간 문의 종료'}</p>
               <p className="text-2xl font-bold text-green-600">
                 {loading ? '-' : stats?.today.byState.closed || 0}
               </p>
@@ -391,13 +490,13 @@ export default function Dashboard() {
               </p>
             </div>
             <div className="bg-white rounded-xl p-4 shadow-lg">
-              <p className="text-gray-500 text-sm">{activeTab === 'daily' ? '오늘 평균응답시간' : '주간 평균 응답시간'}</p>
+              <p className="text-gray-500 text-sm">{activeTab !== 'weekly' ? '오늘 평균응답시간' : '주간 평균 응답시간'}</p>
               <p className="text-2xl font-bold text-cyan-600">
                 {loading ? '-' : `${(stats?.today.avgFirstResponseTimeMin || 0).toFixed(1)}분`}
               </p>
             </div>
             <div className="bg-white rounded-xl p-4 shadow-lg">
-              <p className="text-gray-500 text-sm">{activeTab === 'daily' ? '오늘 평균해결시간' : '주간 평균 해결시간'}</p>
+              <p className="text-gray-500 text-sm">{activeTab !== 'weekly' ? '오늘 평균해결시간' : '주간 평균 해결시간'}</p>
               <p className="text-2xl font-bold text-rose-600">
                 {loading ? '-' : `${(stats?.today.avgResolutionTimeMin || 0).toFixed(1)}분`}
               </p>
@@ -407,13 +506,13 @@ export default function Dashboard() {
           {/* Middle Row - Charts */}
           <div className="grid grid-cols-2 gap-4">
             <div className="bg-white rounded-xl p-4 shadow-lg min-h-[200px]">
-              <h3 className="text-gray-700 font-semibold mb-3">{activeTab === 'daily' ? '오늘 시간대별 대화량' : '주간 daily 문의량'}</h3>
+              <h3 className="text-gray-700 font-semibold mb-3">{activeTab !== 'weekly' ? '오늘 시간대별 대화량' : '주간 daily 문의량'}</h3>
               {loading ? (
                 <div className="flex items-center justify-center h-32">
                   <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500"></div>
                   <span className="ml-2 text-gray-500">데이터 로딩 중...</span>
                 </div>
-              ) : activeTab === 'daily' ? (
+              ) : activeTab !== 'weekly' ? (
                 // Daily: 시간대별 차트
                 (() => {
                   const values = Object.values(stats?.today.byHour || {});
@@ -498,7 +597,7 @@ export default function Dashboard() {
             </div>
             
             <div className="bg-white rounded-xl p-4 shadow-lg min-h-[200px]">
-              <h3 className="text-gray-700 font-semibold mb-3">{activeTab === 'daily' ? '오늘 팀원별 처리 현황' : '주간 팀원별 처리 현황'}</h3>
+              <h3 className="text-gray-700 font-semibold mb-3">{activeTab !== 'weekly' ? '오늘 팀원별 처리 현황' : '주간 팀원별 처리 현황'}</h3>
               {loading ? (
                 <div className="flex items-center justify-center h-32">
                   <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500"></div>
@@ -577,7 +676,7 @@ export default function Dashboard() {
           {/* Bottom Row - 케어드/마켓 문의 */}
           <div className="grid grid-cols-2 gap-4">
             <div className="bg-white rounded-xl p-4 shadow-lg">
-              <h3 className="text-gray-700 font-semibold mb-3">{activeTab === 'daily' ? '오늘 케어드 문의' : '주간 케어드 문의'}</h3>
+              <h3 className="text-gray-700 font-semibold mb-3">{activeTab !== 'weekly' ? '오늘 케어드 문의' : '주간 케어드 문의'}</h3>
               <p className="text-4xl font-bold text-blue-600">
                 {loading ? '-' : stats?.cared.stats.total || 0}
               </p>
@@ -589,7 +688,7 @@ export default function Dashboard() {
             </div>
             
             <div className="bg-white rounded-xl p-4 shadow-lg">
-              <h3 className="text-gray-700 font-semibold mb-3">{activeTab === 'daily' ? '오늘 마켓 문의' : '주간 마켓 문의'}</h3>
+              <h3 className="text-gray-700 font-semibold mb-3">{activeTab !== 'weekly' ? '오늘 마켓 문의' : '주간 마켓 문의'}</h3>
               <p className="text-4xl font-bold text-purple-600">
                 {loading ? '-' : stats?.market.stats.total || 0}
               </p>
@@ -611,13 +710,13 @@ export default function Dashboard() {
             
             <div className="grid grid-cols-2 gap-2 mb-2">
               <div className="bg-gray-800 rounded-lg p-3">
-                <p className="text-xs text-gray-400">{activeTab === 'daily' ? '오늘 총 문의' : '주간 총 문의'}</p>
+                <p className="text-xs text-gray-400">{activeTab !== 'weekly' ? '오늘 총 문의' : '주간 총 문의'}</p>
                 <p className="text-xl font-bold text-green-400">
                   {loading ? '-' : stats?.market.stats.total || 0}
                 </p>
               </div>
               <div className="bg-gray-800 rounded-lg p-3">
-                <p className="text-xs text-gray-400">{activeTab === 'daily' ? '어제 총 문의' : '전주 총 문의'}</p>
+                <p className="text-xs text-gray-400">{activeTab !== 'weekly' ? '어제 총 문의' : '전주 총 문의'}</p>
                 <p className="text-xl font-bold">
                   {loading ? '-' : stats?.yesterday.byProduct.market || 0}
                 </p>

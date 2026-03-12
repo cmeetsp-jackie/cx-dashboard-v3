@@ -340,8 +340,25 @@ export async function GET(request: Request) {
         fetchChatsFromClickHouse(weekStart, weekEnd),
         fetchChatsFromClickHouse(formatDate(prevWeekStart), formatDate(prevWeekEnd)),
       ])
+    } else if (period === 'pastDaily') {
+      // 과거 날짜 데이터: 특정 날짜의 데이터
+      const date = searchParams.get('date')
+      if (!date) {
+        return NextResponse.json({ error: 'date parameter required for pastDaily' }, { status: 400 })
+      }
+      
+      // 해당 날짜와 전날 데이터
+      const targetDate = new Date(date)
+      const prevDate = new Date(targetDate)
+      prevDate.setDate(prevDate.getDate() - 1)
+      const prevDateStr = prevDate.toISOString().split('T')[0]
+      
+      ;[todayChats, yesterdayChats] = await Promise.all([
+        fetchChatsFromClickHouse(date, date),
+        fetchChatsFromClickHouse(prevDateStr, prevDateStr),
+      ])
     } else {
-      // 일간 데이터: ClickHouse에서 조회 (Channel Talk API 대신)
+      // 일간 데이터 (오늘): ClickHouse에서 조회
       const now = new Date()
       const kstNow = new Date(now.getTime() + 9 * 60 * 60 * 1000)
       
