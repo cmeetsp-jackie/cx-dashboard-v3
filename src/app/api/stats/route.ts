@@ -4,6 +4,12 @@ const CHANNELTALK_API = 'https://api.channel.io/open/v5'
 const ACCESS_KEY = process.env.CHANNELTALK_ACCESS_KEY!
 const ACCESS_SECRET = process.env.CHANNELTALK_ACCESS_SECRET!
 
+// ClickHouse 연결 정보
+const CLICKHOUSE_HOST = process.env.CLICKHOUSE_HOST || 'clickhouse.data.charan.app'
+const CLICKHOUSE_PORT = process.env.CLICKHOUSE_PORT || '8123'
+const CLICKHOUSE_USER = process.env.CLICKHOUSE_USER!
+const CLICKHOUSE_PASSWORD = process.env.CLICKHOUSE_PASSWORD!
+
 // 마켓 태그 (구매자/, 판매자/, 공통/, P2P 등)
 const MARKET_PREFIXES = ['구매자/', '판매자/', '공통/', 'P2P', '마켓']
 
@@ -16,6 +22,7 @@ interface Chat {
   avgReplyTime?: number
   firstRepliedAt?: number
   firstOpenedAt?: number
+  resolutionTime?: number  // 해결까지 걸린 시간 (밀리초)
   source?: { workflow?: any }
 }
 
@@ -84,19 +91,39 @@ async function fetchAllChats(sinceMs: number, untilMs: number): Promise<Chat[]> 
   const allChats: Chat[] = []
   const seenIds = new Set<string>()
 
-  // Channel Talk API 페이지네이션이 제대로 작동하지 않음
-  // 각 state별로 첫 페이지(100개)만 가져오고 날짜 필터링
+  // 페이지네이션으로 모든 데이터 가져오기
   for (const state of states) {
-    const { chats } = await fetchChats(state)
+    let nextCursor: string | undefined = undefined
+    let pageCount = 0
+    const maxPages = 50 // 안전장치: 최대 50페이지 (25,000건)
     
-    for (const chat of chats) {
-      if (seenIds.has(chat.id)) continue
-      const created = chat.createdAt || 0
+    while (pageCount < maxPages) {
+      const { chats, next } = await fetchChats(state, nextCursor)
+      pageCount++
       
-      if (created >= sinceMs && created <= untilMs) {
-        allChats.push(chat)
-        seenIds.add(chat.id)
+      if (chats.length === 0) break
+      
+      let hasOlderData = false
+      for (const chat of chats) {
+        if (seenIds.has(chat.id)) continue
+        const created = chat.createdAt || 0
+        
+        // 날짜 범위 체크
+        if (created >= sinceMs && created <= untilMs) {
+          allChats.push(chat)
+          seenIds.add(chat.id)
+        }
+        
+        // 날짜 범위보다 이전 데이터가 나오면 더 이상 가져올 필요 없음
+        if (created < sinceMs) {
+          hasOlderData = true
+        }
       }
+      
+      // 날짜 범위보다 오래된 데이터가 나왔거나, 다음 페이지가 없으면 중단
+      if (hasOlderData || !next) break
+      
+      nextCursor = next
     }
   }
   return allChats
@@ -108,6 +135,55 @@ const MANAGERS: Record<string, string> = {
   '570790': 'Sia',
 }
 
+// ClickHouse에서 데이터 조회 (주간 데이터용)
+async function fetchChatsFromClickHouse(startDate: string, endDate: string): Promise<Chat[]> {
+  const query = `
+    SELECT 
+      id,
+      state,
+      tags,
+      assignee_id as assigneeId,
+      toUnixTimestamp64Milli(created_at) as createdAt,
+      avg_reply_time as avgReplyTime,
+      toUnixTimestamp64Milli(first_replied_at) as firstRepliedAt,
+      toUnixTimestamp64Milli(first_opened_at) as firstOpenedAt,
+      resolution_time as resolutionTime
+    FROM rawdata_channel_talk.user_chats 
+    WHERE created_at >= '${startDate} 00:00:00' 
+      AND created_at < '${endDate} 23:59:59'
+    FORMAT JSON
+  `
+  
+  const auth = Buffer.from(`${CLICKHOUSE_USER}:${CLICKHOUSE_PASSWORD}`).toString('base64')
+  
+  const response = await fetch(`http://${CLICKHOUSE_HOST}:${CLICKHOUSE_PORT}/`, {
+    method: 'POST',
+    headers: {
+      'Authorization': `Basic ${auth}`,
+      'Content-Type': 'text/plain',
+    },
+    body: query,
+  })
+  
+  if (!response.ok) {
+    console.error('ClickHouse error:', await response.text())
+    return []
+  }
+  
+  const result = await response.json()
+  
+  // tags 파싱 (ClickHouse에서 Array(String)으로 저장됨)
+  return (result.data || []).map((row: any) => ({
+    ...row,
+    tags: Array.isArray(row.tags) ? row.tags : (row.tags ? JSON.parse(row.tags) : []),
+    createdAt: Number(row.createdAt),
+    avgReplyTime: row.avgReplyTime ? Number(row.avgReplyTime) : undefined,
+    firstRepliedAt: row.firstRepliedAt ? Number(row.firstRepliedAt) : undefined,
+    firstOpenedAt: row.firstOpenedAt ? Number(row.firstOpenedAt) : undefined,
+    resolutionTime: row.resolutionTime ? Number(row.resolutionTime) : undefined,
+  }))
+}
+
 function calculateStats(chats: Chat[]) {
   const stats = {
     total: chats.length,
@@ -115,9 +191,11 @@ function calculateStats(chats: Chat[]) {
     byProduct: { market: 0, cared: 0 },
     byManager: {} as Record<string, number>,
     byHour: {} as Record<number, number>,
+    byDate: {} as Record<string, number>,  // 일별 문의량 (주간용)
     byTag: {} as Record<string, number>,
     avgResponseTimeMin: 0,
     avgFirstResponseTimeMin: 0,
+    avgResolutionTimeMin: 0,  // 평균 해결시간 (분)
     aiCount: 0,
     aiRate: 0,
     responseRate: 0,      // 응답률: 응답한 건수 / 전체
@@ -130,6 +208,8 @@ function calculateStats(chats: Chat[]) {
   let totalFirstResponse = 0
   let firstResponseCount = 0
   let respondedCount = 0  // 응답을 보낸 건수
+  let totalResolutionTime = 0
+  let resolutionCount = 0
 
   for (const chat of chats) {
     // 상태
@@ -150,6 +230,11 @@ function calculateStats(chats: Chat[]) {
     const chatDate = new Date(chat.createdAt)
     const kstHour = (chatDate.getUTCHours() + 9) % 24  // UTC+9
     stats.byHour[kstHour] = (stats.byHour[kstHour] || 0) + 1
+    
+    // 일별 (KST 기준) - 주간 차트용
+    const kstDate = new Date(chat.createdAt + 9 * 60 * 60 * 1000)
+    const dateKey = kstDate.toISOString().split('T')[0]  // YYYY-MM-DD
+    stats.byDate[dateKey] = (stats.byDate[dateKey] || 0) + 1
 
     // 태그
     for (const tag of chat.tags || []) {
@@ -177,10 +262,17 @@ function calculateStats(chats: Chat[]) {
     if (chat.state === 'closed' && !chat.assigneeId) {
       stats.aiCount++
     }
+    
+    // 해결 시간 (종료된 채팅만)
+    if (chat.state === 'closed' && chat.resolutionTime) {
+      totalResolutionTime += chat.resolutionTime / 60  // seconds -> minutes
+      resolutionCount++
+    }
   }
 
   stats.avgResponseTimeMin = responseCount > 0 ? totalResponseTime / responseCount : 0
   stats.avgFirstResponseTimeMin = firstResponseCount > 0 ? totalFirstResponse / firstResponseCount : 0
+  stats.avgResolutionTimeMin = resolutionCount > 0 ? totalResolutionTime / resolutionCount : 0
   stats.aiRate = chats.length > 0 ? Math.round((stats.aiCount / chats.length) * 1000) / 10 : 0
   
   // 응답률: 응답한 건수 / 전체 건수
@@ -193,15 +285,96 @@ function calculateStats(chats: Chat[]) {
   return stats
 }
 
-export async function GET() {
-  try {
-    const [todayStart, todayEnd] = getTodayRange()
-    const [yesterdayStart, yesterdayEnd] = getYesterdayRange()
+function getWeekRange(weekStart: string, weekEnd: string): [number, number] {
+  // weekStart, weekEnd는 'YYYY-MM-DD' 형식
+  const kstOffset = 9 * 60 * 60 * 1000
+  
+  const [sy, sm, sd] = weekStart.split('-').map(Number)
+  const [ey, em, ed] = weekEnd.split('-').map(Number)
+  
+  const start = Date.UTC(sy, sm - 1, sd, 0, 0, 0) - kstOffset
+  const end = Date.UTC(ey, em - 1, ed, 23, 59, 59, 999) - kstOffset
+  
+  return [start, end]
+}
 
-    const [todayChats, yesterdayChats] = await Promise.all([
-      fetchAllChats(todayStart, todayEnd),
-      fetchAllChats(yesterdayStart, yesterdayEnd),
-    ])
+function getPrevWeekRange(weekStart: string, weekEnd: string): [number, number] {
+  const kstOffset = 9 * 60 * 60 * 1000
+  
+  const [sy, sm, sd] = weekStart.split('-').map(Number)
+  const [ey, em, ed] = weekEnd.split('-').map(Number)
+  
+  // 7일 전
+  const startDate = new Date(Date.UTC(sy, sm - 1, sd))
+  startDate.setUTCDate(startDate.getUTCDate() - 7)
+  
+  const endDate = new Date(Date.UTC(ey, em - 1, ed))
+  endDate.setUTCDate(endDate.getUTCDate() - 7)
+  
+  const start = Date.UTC(startDate.getUTCFullYear(), startDate.getUTCMonth(), startDate.getUTCDate(), 0, 0, 0) - kstOffset
+  const end = Date.UTC(endDate.getUTCFullYear(), endDate.getUTCMonth(), endDate.getUTCDate(), 23, 59, 59, 999) - kstOffset
+  
+  return [start, end]
+}
+
+export async function GET(request: Request) {
+  try {
+    const { searchParams } = new URL(request.url)
+    const period = searchParams.get('period') || 'daily'
+    const weekStart = searchParams.get('weekStart')
+    const weekEnd = searchParams.get('weekEnd')
+
+    let todayChats: Chat[]
+    let yesterdayChats: Chat[]
+
+    if (period === 'weekly' && weekStart && weekEnd) {
+      // 주간 데이터: ClickHouse에서 직접 조회 (정확한 데이터)
+      const prevWeekStart = new Date(weekStart)
+      prevWeekStart.setDate(prevWeekStart.getDate() - 7)
+      const prevWeekEnd = new Date(weekEnd)
+      prevWeekEnd.setDate(prevWeekEnd.getDate() - 7)
+      
+      const formatDate = (d: Date) => d.toISOString().split('T')[0]
+      
+      ;[todayChats, yesterdayChats] = await Promise.all([
+        fetchChatsFromClickHouse(weekStart, weekEnd),
+        fetchChatsFromClickHouse(formatDate(prevWeekStart), formatDate(prevWeekEnd)),
+      ])
+    } else if (period === 'pastDaily') {
+      // 과거 날짜 데이터: 특정 날짜의 데이터
+      const date = searchParams.get('date')
+      if (!date) {
+        return NextResponse.json({ error: 'date parameter required for pastDaily' }, { status: 400 })
+      }
+      
+      // 해당 날짜와 전날 데이터
+      const targetDate = new Date(date)
+      const prevDate = new Date(targetDate)
+      prevDate.setDate(prevDate.getDate() - 1)
+      const prevDateStr = prevDate.toISOString().split('T')[0]
+      
+      ;[todayChats, yesterdayChats] = await Promise.all([
+        fetchChatsFromClickHouse(date, date),
+        fetchChatsFromClickHouse(prevDateStr, prevDateStr),
+      ])
+    } else {
+      // 일간 데이터 (오늘): ClickHouse에서 조회
+      const now = new Date()
+      const kstNow = new Date(now.getTime() + 9 * 60 * 60 * 1000)
+      
+      const formatDateKST = (d: Date) => d.toISOString().split('T')[0]
+      
+      const todayDate = formatDateKST(kstNow)
+      
+      const yesterdayKST = new Date(kstNow)
+      yesterdayKST.setDate(yesterdayKST.getDate() - 1)
+      const yesterdayDate = formatDateKST(yesterdayKST)
+      
+      ;[todayChats, yesterdayChats] = await Promise.all([
+        fetchChatsFromClickHouse(todayDate, todayDate),
+        fetchChatsFromClickHouse(yesterdayDate, yesterdayDate),
+      ])
+    }
 
     const todayStats = calculateStats(todayChats)
     const yesterdayStats = calculateStats(yesterdayChats)
