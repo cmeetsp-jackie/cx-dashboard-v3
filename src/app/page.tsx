@@ -48,6 +48,7 @@ interface Stats {
     };
     topTags: { tag: string; count: number }[];
   };
+  firstResolutionRates: { date: string; assigned: number; rate: number }[];
 }
 
 // 날짜 유틸리티
@@ -792,11 +793,15 @@ export default function Dashboard() {
                     { date: '3/17', day: '월' },
                   ];
                   
-                  // 1차 해결률 데이터 (하드코딩 - 추후 API 연동)
-                  const firstResolutionData: Record<string, { rate: number; assigned: number }> = {
-                    '3/11': { rate: 18.1, assigned: 149 },
-                    '3/12': { rate: 6.1, assigned: 132 },
-                  };
+                  // 1차 해결률 데이터 (API에서 가져옴)
+                  const firstResolutionData: Record<string, { rate: number; assigned: number }> = {};
+                  if (stats?.firstResolutionRates) {
+                    stats.firstResolutionRates.forEach(item => {
+                      const [year, month, day] = item.date.split('-');
+                      const key = `${parseInt(month)}/${parseInt(day)}`;
+                      firstResolutionData[key] = { rate: item.rate, assigned: item.assigned };
+                    });
+                  }
                   
                   const kstNow = new Date(new Date().getTime() + 9 * 60 * 60 * 1000);
                   const todayDate = kstNow.getUTCDate();

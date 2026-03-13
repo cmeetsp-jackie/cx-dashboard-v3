@@ -135,6 +135,46 @@ const MANAGERS: Record<string, string> = {
   '570790': 'Sia',
 }
 
+// 1차 해결률 계산 (ClickHouse)
+async function fetchFirstResolutionRate(startDate: string, endDate: string): Promise<{ date: string; assigned: number; rate: number }[]> {
+  const query = `
+    SELECT 
+      toDate(created_at) as date,
+      countIf(assignee_id IS NOT NULL) as assigned,
+      countIf(assignee_id IS NOT NULL AND state = 'closed' AND toHour(assumeNotNull(first_replied_at)) < 19) as resolved_before_19
+    FROM rawdata_channel_talk.user_chats 
+    WHERE toDate(created_at) >= '${startDate}' 
+      AND toDate(created_at) <= '${endDate}'
+    GROUP BY date
+    ORDER BY date
+    FORMAT JSON
+  `
+  
+  const auth = Buffer.from(`${CLICKHOUSE_USER}:${CLICKHOUSE_PASSWORD}`).toString('base64')
+  
+  const response = await fetch(`http://${CLICKHOUSE_HOST}:${CLICKHOUSE_PORT}/`, {
+    method: 'POST',
+    headers: {
+      'Authorization': `Basic ${auth}`,
+      'Content-Type': 'text/plain',
+    },
+    body: query,
+  })
+  
+  if (!response.ok) {
+    console.error('ClickHouse error:', await response.text())
+    return []
+  }
+  
+  const result = await response.json()
+  
+  return (result.data || []).map((row: any) => ({
+    date: row.date,
+    assigned: Number(row.assigned),
+    rate: row.assigned > 0 ? Math.round((Number(row.resolved_before_19) / Number(row.assigned)) * 1000) / 10 : 0
+  }))
+}
+
 // ClickHouse에서 데이터 조회 (주간 데이터용)
 async function fetchChatsFromClickHouse(startDate: string, endDate: string): Promise<Chat[]> {
   const query = `
@@ -383,6 +423,9 @@ export async function GET(request: Request) {
     const todayStats = calculateStats(todayChats)
     const yesterdayStats = calculateStats(yesterdayChats)
 
+    // 1차 해결률 계산 (3/11 ~ 3/17 고정)
+    const firstResolutionRates = await fetchFirstResolutionRate('2026-03-11', '2026-03-17')
+
     // 마켓/케어드 분리
     const todayMarket = todayChats.filter(c => classifyProduct(c) === 'market')
     const todayCared = todayChats.filter(c => classifyProduct(c) === 'cared')
@@ -423,6 +466,7 @@ export async function GET(request: Request) {
         stats: calculateStats(todayMarket),
         topTags: getTopTags(todayMarket),
       },
+      firstResolutionRates: firstResolutionRates,
       generatedAt: new Date().toISOString(),
     })
   } catch (error) {
