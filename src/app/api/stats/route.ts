@@ -175,6 +175,55 @@ async function fetchFirstResolutionRate(startDate: string, endDate: string): Pro
   }))
 }
 
+// 일별 해결률 & 해결시간 데이터 (ClickHouse)
+async function fetchDailyResolutionStats(startDate: string, endDate: string): Promise<{ date: string; resolutionRate: number; avgResolutionTimeMin: number; total: number; closed: number }[]> {
+  const query = `
+    SELECT 
+      toDate(created_at) as date,
+      count(*) as total,
+      countIf(state = 'closed') as closed,
+      avgIf(resolution_time, state = 'closed' AND resolution_time > 0) as avg_resolution_time
+    FROM rawdata_channel_talk.user_chats 
+    WHERE toDate(created_at) >= '${startDate}' 
+      AND toDate(created_at) <= '${endDate}'
+    GROUP BY date
+    ORDER BY date
+    FORMAT JSON
+  `
+  
+  const auth = Buffer.from(`${CLICKHOUSE_USER}:${CLICKHOUSE_PASSWORD}`).toString('base64')
+  
+  const response = await fetch(`http://${CLICKHOUSE_HOST}:${CLICKHOUSE_PORT}/`, {
+    method: 'POST',
+    headers: {
+      'Authorization': `Basic ${auth}`,
+      'Content-Type': 'text/plain',
+    },
+    body: query,
+  })
+  
+  if (!response.ok) {
+    console.error('ClickHouse error:', await response.text())
+    return []
+  }
+  
+  const result = await response.json()
+  
+  return (result.data || []).map((row: any) => {
+    const total = Number(row.total)
+    const closed = Number(row.closed)
+    const avgResolutionTime = row.avg_resolution_time ? Number(row.avg_resolution_time) : 0
+    
+    return {
+      date: row.date,
+      total,
+      closed,
+      resolutionRate: total > 0 ? Math.round((closed / total) * 1000) / 10 : 0,
+      avgResolutionTimeMin: Math.round(avgResolutionTime / 60)  // seconds -> minutes
+    }
+  })
+}
+
 // ClickHouse에서 데이터 조회 (주간 데이터용)
 async function fetchChatsFromClickHouse(startDate: string, endDate: string): Promise<Chat[]> {
   const query = `
@@ -425,6 +474,9 @@ export async function GET(request: Request) {
 
     // 1차 해결률 계산 (3/11 ~ 3/17 고정)
     const firstResolutionRates = await fetchFirstResolutionRate('2026-03-11', '2026-03-17')
+    
+    // 일별 해결률 & 해결시간 (3/11 ~ 3/17)
+    const dailyResolutionStats = await fetchDailyResolutionStats('2026-03-11', '2026-03-17')
 
     // 마켓/케어드 분리
     const todayMarket = todayChats.filter(c => classifyProduct(c) === 'market')
@@ -467,6 +519,7 @@ export async function GET(request: Request) {
         topTags: getTopTags(todayMarket),
       },
       firstResolutionRates: firstResolutionRates,
+      dailyResolutionStats: dailyResolutionStats,
       generatedAt: new Date().toISOString(),
     })
   } catch (error) {

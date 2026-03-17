@@ -49,6 +49,7 @@ interface Stats {
     topTags: { tag: string; count: number }[];
   };
   firstResolutionRates: { date: string; assigned: number; rate: number }[];
+  dailyResolutionStats: { date: string; resolutionRate: number; avgResolutionTimeMin: number; total: number; closed: number }[];
 }
 
 // 날짜 유틸리티
@@ -890,12 +891,18 @@ export default function Dashboard() {
                     let resolutionRate: string | number = '-';
                     let resolutionTime: string | number = '-';
                     
-                    if (isToday) {
+                    // dailyResolutionStats에서 해당 날짜 데이터 찾기
+                    const [m, d] = item.date.split('/').map(Number);
+                    const dateKey = `2026-${String(m).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
+                    const dayData = stats?.dailyResolutionStats?.find(s => s.date === dateKey);
+                    
+                    if (dayData) {
+                      resolutionRate = dayData.resolutionRate;
+                      resolutionTime = dayData.avgResolutionTimeMin;
+                    } else if (isToday) {
+                      // fallback: 오늘 데이터가 아직 dailyResolutionStats에 없으면 today 사용
                       resolutionRate = stats?.today.resolutionRate || 0;
                       resolutionTime = (stats?.today.avgResolutionTimeMin || 0).toFixed(0);
-                    } else if (isYesterday) {
-                      resolutionRate = stats?.yesterday.resolutionRate || 0;
-                      resolutionTime = (stats?.yesterday.avgResolutionTimeMin || 0).toFixed(0);
                     }
                     
                     return (
