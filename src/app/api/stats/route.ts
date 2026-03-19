@@ -224,6 +224,49 @@ async function fetchDailyResolutionStats(startDate: string, endDate: string): Pr
   })
 }
 
+// 마켓 판매자/구매자/미분류 문의 건수 조회 (태그 기반)
+async function fetchMarketSellerBuyerInquiries(startDate: string, endDate: string): Promise<{ marketSeller: number; marketBuyer: number; marketUnclassified: number }> {
+  const auth = Buffer.from(`${CLICKHOUSE_USER}:${CLICKHOUSE_PASSWORD}`).toString('base64')
+  
+  const query = `
+    SELECT 
+      countIf(
+        arrayExists(x -> x LIKE 'P2P%' OR x LIKE '마켓%' OR x LIKE '공통/%', tags)
+        AND arrayExists(x -> x LIKE '판매자/%', tags)
+      ) as market_seller,
+      countIf(
+        arrayExists(x -> x LIKE 'P2P%' OR x LIKE '마켓%' OR x LIKE '공통/%', tags)
+        AND arrayExists(x -> x LIKE '구매자/%', tags)
+      ) as market_buyer,
+      countIf(
+        arrayExists(x -> x LIKE 'P2P%' OR x LIKE '마켓%' OR x LIKE '공통/%', tags)
+        AND NOT arrayExists(x -> x LIKE '판매자/%', tags)
+        AND NOT arrayExists(x -> x LIKE '구매자/%', tags)
+      ) as market_unclassified
+    FROM rawdata_channel_talk.user_chats
+    WHERE toDate(created_at) >= '${startDate}' AND toDate(created_at) <= '${endDate}'
+    FORMAT JSON
+  `
+  
+  try {
+    const response = await fetch(`http://${CLICKHOUSE_HOST}:${CLICKHOUSE_PORT}/`, {
+      method: 'POST',
+      headers: { 'Authorization': `Basic ${auth}`, 'Content-Type': 'text/plain' },
+      body: query,
+    })
+    
+    const data = await response.json()
+    return {
+      marketSeller: Number(data.data?.[0]?.market_seller || 0),
+      marketBuyer: Number(data.data?.[0]?.market_buyer || 0),
+      marketUnclassified: Number(data.data?.[0]?.market_unclassified || 0),
+    }
+  } catch (e) {
+    console.error('Failed to fetch market seller/buyer inquiries:', e)
+    return { marketSeller: 0, marketBuyer: 0, marketUnclassified: 0 }
+  }
+}
+
 // 케어드 판매자/구매자/미분류 문의 건수 조회 (태그 기반)
 async function fetchCaredSellerBuyerInquiries(startDate: string, endDate: string): Promise<{ caredSeller: number; caredBuyer: number; caredUnclassified: number }> {
   const auth = Buffer.from(`${CLICKHOUSE_USER}:${CLICKHOUSE_PASSWORD}`).toString('base64')
@@ -642,9 +685,11 @@ export async function GET(request: Request) {
     // Contact Rate용 주문수/백신청자 수 (주간일 때만 조회)
     let contactRateData = null
     let caredSellerBuyerData = null
+    let marketSellerBuyerData = null
     if (period === 'weekly' && weekStart && weekEnd) {
       contactRateData = await fetchContactRateData(weekStart, weekEnd)
       caredSellerBuyerData = await fetchCaredSellerBuyerInquiries(weekStart, weekEnd)
+      marketSellerBuyerData = await fetchMarketSellerBuyerInquiries(weekStart, weekEnd)
     }
 
     // 마켓/케어드 분리
@@ -691,6 +736,7 @@ export async function GET(request: Request) {
       dailyResolutionStats: dailyResolutionStats,
       contactRateData: contactRateData,
       caredSellerBuyerData: caredSellerBuyerData,
+      marketSellerBuyerData: marketSellerBuyerData,
       generatedAt: new Date().toISOString(),
     })
   } catch (error) {

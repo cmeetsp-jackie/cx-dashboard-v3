@@ -157,6 +157,7 @@ interface WeekData {
   cared: number;
   contactRateData?: { orders: number; caredOrders: number; marketOrders: number; bagRequesters: number };
   caredSellerBuyerData?: { caredSeller: number; caredBuyer: number; caredUnclassified: number };
+  marketSellerBuyerData?: { marketSeller: number; marketBuyer: number; marketUnclassified: number };
 }
 
 function RoadmapReview() {
@@ -164,6 +165,7 @@ function RoadmapReview() {
   const [thisWeekData, setThisWeekData] = useState<WeekData | null>(null);
   const [loading, setLoading] = useState(true);
   const [caredExpanded, setCaredExpanded] = useState(false);
+  const [marketExpanded, setMarketExpanded] = useState(false);
 
   // 지난주 = Week 1 (3/4~3/10), 이번주 = Week 2 (3/11~3/17)
   // 주간 기준: 수요일~화요일
@@ -185,14 +187,16 @@ function RoadmapReview() {
           market: lastData.today?.byProduct?.market || 0,
           cared: lastData.today?.byProduct?.cared || 0,
           contactRateData: lastData.contactRateData || { orders: 0, caredOrders: 0, marketOrders: 0, bagRequesters: 0 },
-          caredSellerBuyerData: lastData.caredSellerBuyerData || { caredSeller: 0, caredBuyer: 0 },
+          caredSellerBuyerData: lastData.caredSellerBuyerData || { caredSeller: 0, caredBuyer: 0, caredUnclassified: 0 },
+          marketSellerBuyerData: lastData.marketSellerBuyerData || { marketSeller: 0, marketBuyer: 0, marketUnclassified: 0 },
         });
         setThisWeekData({ 
           total: thisData.today?.total || 0,
           market: thisData.today?.byProduct?.market || 0,
           cared: thisData.today?.byProduct?.cared || 0,
           contactRateData: thisData.contactRateData || { orders: 0, caredOrders: 0, marketOrders: 0, bagRequesters: 0 },
-          caredSellerBuyerData: thisData.caredSellerBuyerData || { caredSeller: 0, caredBuyer: 0 },
+          caredSellerBuyerData: thisData.caredSellerBuyerData || { caredSeller: 0, caredBuyer: 0, caredUnclassified: 0 },
+          marketSellerBuyerData: thisData.marketSellerBuyerData || { marketSeller: 0, marketBuyer: 0, marketUnclassified: 0 },
         });
       } catch (e) {
         console.error('Failed to fetch roadmap data', e);
@@ -772,7 +776,13 @@ function RoadmapReview() {
       <div className="flex gap-6 mb-6">
         {/* 마켓 문의량 주간비교 */}
         <div className="bg-gray-50 rounded-xl p-6 flex-1 flex flex-col">
-          <h3 className="text-lg font-semibold text-gray-700 mb-4">마켓 문의량 주간비교</h3>
+          <h3 
+            className="text-lg font-semibold text-gray-700 mb-4 cursor-pointer hover:text-green-600 flex items-center gap-2"
+            onClick={() => setMarketExpanded(!marketExpanded)}
+          >
+            마켓 문의량 주간비교
+            <span className="text-sm font-normal text-gray-400">{marketExpanded ? '▼' : '▶'} 클릭하여 상세보기</span>
+          </h3>
           
           {loading ? (
             <div className="flex items-center justify-center flex-1">
@@ -940,6 +950,194 @@ function RoadmapReview() {
         </div>
         )}
       </div>
+
+      {/* 마켓 판매자/구매자 상세 (확장 시) */}
+      {marketExpanded && !loading && (
+        <div className="mb-6 border-l-4 border-green-400 pl-4">
+          <h4 className="text-md font-semibold text-green-600 mb-4">📊 마켓 문의 상세 분류</h4>
+          
+          {/* 마켓 판매자 문의량 + Contact Rate */}
+          <div className="flex gap-6 mb-4">
+            {/* 마켓 판매자 문의량 */}
+            <div className="bg-green-50 rounded-xl p-4 flex-1">
+              <h5 className="text-md font-semibold text-green-700 mb-3">판매 고객님 문의량 주간비교</h5>
+              {(() => {
+                const lastSeller = lastWeekData?.marketSellerBuyerData?.marketSeller || 0;
+                const thisSeller = thisWeekData?.marketSellerBuyerData?.marketSeller || 0;
+                const sellerDiff = thisSeller - lastSeller;
+                const sellerDiffPercent = lastSeller > 0 ? ((sellerDiff / lastSeller) * 100).toFixed(1) : '0';
+                const isSellerIncrease = sellerDiff >= 0;
+                const maxSeller = Math.max(lastSeller, thisSeller, 1);
+                
+                return (
+                  <div className="flex flex-col">
+                    <div className="flex items-end justify-center gap-12 mb-3">
+                      <div className="flex flex-col items-center">
+                        <span className="text-xl font-bold text-gray-600 mb-1">{lastSeller}건</span>
+                        <div className="w-20 bg-gray-400 rounded-t-lg" style={{ height: `${Math.max((lastSeller / maxSeller) * 80, 10)}px` }} />
+                        <span className="mt-2 text-sm text-gray-500">지난주 ({LAST_WEEK.label})</span>
+                      </div>
+                      <div className="flex flex-col items-center">
+                        <span className="text-xl font-bold text-green-600 mb-1">{thisSeller}건</span>
+                        <div className="w-20 bg-green-500 rounded-t-lg" style={{ height: `${Math.max((thisSeller / maxSeller) * 80, 10)}px` }} />
+                        <span className="mt-2 text-sm text-gray-500">이번주 ({THIS_WEEK.label})</span>
+                      </div>
+                    </div>
+                    <div className="flex justify-center">
+                      <span className={`px-4 py-1 rounded-full text-white text-sm font-medium ${isSellerIncrease ? 'bg-green-500' : 'bg-red-500'}`}>
+                        {isSellerIncrease ? '▲' : '▼'} {Math.abs(sellerDiff)}건 ({isSellerIncrease ? '+' : ''}{sellerDiffPercent}%)
+                      </span>
+                    </div>
+                  </div>
+                );
+              })()}
+            </div>
+            
+            {/* 마켓 판매자 Contact Rate */}
+            <div className="bg-green-50 rounded-xl p-4 flex-1">
+              <h5 className="text-md font-semibold text-green-700 mb-3">판매자 Contact Rate</h5>
+              <p className="text-xs text-green-500 mb-2">= 판매자 문의건수 ÷ 마켓 주문수</p>
+              {(() => {
+                const lastSeller = lastWeekData?.marketSellerBuyerData?.marketSeller || 0;
+                const thisSeller = thisWeekData?.marketSellerBuyerData?.marketSeller || 0;
+                const lastOrders = lastWeekData?.contactRateData?.marketOrders || 1;
+                const thisOrders = thisWeekData?.contactRateData?.marketOrders || 1;
+                const lastRate = (lastSeller / lastOrders) * 100;
+                const thisRate = (thisSeller / thisOrders) * 100;
+                const rateDiff = thisRate - lastRate;
+                
+                return (
+                  <div className="flex flex-col items-center">
+                    <div className="flex gap-8 mb-3">
+                      <div className="text-center">
+                        <p className="text-2xl font-bold text-gray-600">{lastRate.toFixed(2)}%</p>
+                        <p className="text-xs text-gray-500">지난주</p>
+                      </div>
+                      <div className="text-center">
+                        <p className="text-2xl font-bold text-green-600">{thisRate.toFixed(2)}%</p>
+                        <p className="text-xs text-gray-500">이번주</p>
+                      </div>
+                    </div>
+                    <span className={`px-3 py-1 rounded text-xs font-medium ${rateDiff >= 0 ? 'bg-red-100 text-red-600' : 'bg-green-100 text-green-600'}`}>
+                      {rateDiff >= 0 ? '+' : ''}{rateDiff.toFixed(2)}%P WOW
+                    </span>
+                  </div>
+                );
+              })()}
+            </div>
+          </div>
+          
+          {/* 마켓 구매자 문의량 + Contact Rate */}
+          <div className="flex gap-6 mb-4">
+            {/* 마켓 구매자 문의량 */}
+            <div className="bg-teal-50 rounded-xl p-4 flex-1">
+              <h5 className="text-md font-semibold text-teal-700 mb-3">구매 고객님 문의량 주간비교</h5>
+              {(() => {
+                const lastBuyer = lastWeekData?.marketSellerBuyerData?.marketBuyer || 0;
+                const thisBuyer = thisWeekData?.marketSellerBuyerData?.marketBuyer || 0;
+                const buyerDiff = thisBuyer - lastBuyer;
+                const buyerDiffPercent = lastBuyer > 0 ? ((buyerDiff / lastBuyer) * 100).toFixed(1) : '0';
+                const isBuyerIncrease = buyerDiff >= 0;
+                const maxBuyer = Math.max(lastBuyer, thisBuyer, 1);
+                
+                return (
+                  <div className="flex flex-col">
+                    <div className="flex items-end justify-center gap-12 mb-3">
+                      <div className="flex flex-col items-center">
+                        <span className="text-xl font-bold text-gray-600 mb-1">{lastBuyer}건</span>
+                        <div className="w-20 bg-gray-400 rounded-t-lg" style={{ height: `${Math.max((lastBuyer / maxBuyer) * 80, 10)}px` }} />
+                        <span className="mt-2 text-sm text-gray-500">지난주 ({LAST_WEEK.label})</span>
+                      </div>
+                      <div className="flex flex-col items-center">
+                        <span className="text-xl font-bold text-teal-600 mb-1">{thisBuyer}건</span>
+                        <div className="w-20 bg-teal-500 rounded-t-lg" style={{ height: `${Math.max((thisBuyer / maxBuyer) * 80, 10)}px` }} />
+                        <span className="mt-2 text-sm text-gray-500">이번주 ({THIS_WEEK.label})</span>
+                      </div>
+                    </div>
+                    <div className="flex justify-center">
+                      <span className={`px-4 py-1 rounded-full text-white text-sm font-medium ${isBuyerIncrease ? 'bg-green-500' : 'bg-red-500'}`}>
+                        {isBuyerIncrease ? '▲' : '▼'} {Math.abs(buyerDiff)}건 ({isBuyerIncrease ? '+' : ''}{buyerDiffPercent}%)
+                      </span>
+                    </div>
+                  </div>
+                );
+              })()}
+            </div>
+            
+            {/* 마켓 구매자 Contact Rate */}
+            <div className="bg-teal-50 rounded-xl p-4 flex-1">
+              <h5 className="text-md font-semibold text-teal-700 mb-3">구매자 Contact Rate</h5>
+              <p className="text-xs text-teal-500 mb-2">= 구매자 문의건수 ÷ 마켓 주문수</p>
+              {(() => {
+                const lastBuyer = lastWeekData?.marketSellerBuyerData?.marketBuyer || 0;
+                const thisBuyer = thisWeekData?.marketSellerBuyerData?.marketBuyer || 0;
+                const lastOrders = lastWeekData?.contactRateData?.marketOrders || 1;
+                const thisOrders = thisWeekData?.contactRateData?.marketOrders || 1;
+                const lastRate = (lastBuyer / lastOrders) * 100;
+                const thisRate = (thisBuyer / thisOrders) * 100;
+                const rateDiff = thisRate - lastRate;
+                
+                return (
+                  <div className="flex flex-col items-center">
+                    <div className="flex gap-8 mb-3">
+                      <div className="text-center">
+                        <p className="text-2xl font-bold text-gray-600">{lastRate.toFixed(2)}%</p>
+                        <p className="text-xs text-gray-500">지난주</p>
+                      </div>
+                      <div className="text-center">
+                        <p className="text-2xl font-bold text-teal-600">{thisRate.toFixed(2)}%</p>
+                        <p className="text-xs text-gray-500">이번주</p>
+                      </div>
+                    </div>
+                    <span className={`px-3 py-1 rounded text-xs font-medium ${rateDiff >= 0 ? 'bg-red-100 text-red-600' : 'bg-green-100 text-green-600'}`}>
+                      {rateDiff >= 0 ? '+' : ''}{rateDiff.toFixed(2)}%P WOW
+                    </span>
+                  </div>
+                );
+              })()}
+            </div>
+          </div>
+          
+          {/* 미분류 문의량 */}
+          <div className="flex gap-6">
+            <div className="bg-gray-100 rounded-xl p-4 flex-1">
+              <h5 className="text-md font-semibold text-gray-600 mb-3">미분류 문의량 주간비교</h5>
+              <p className="text-xs text-gray-400 mb-2">판매자/구매자 태그가 없는 문의</p>
+              {(() => {
+                const lastUnclassified = lastWeekData?.marketSellerBuyerData?.marketUnclassified || 0;
+                const thisUnclassified = thisWeekData?.marketSellerBuyerData?.marketUnclassified || 0;
+                const unclassifiedDiff = thisUnclassified - lastUnclassified;
+                const unclassifiedDiffPercent = lastUnclassified > 0 ? ((unclassifiedDiff / lastUnclassified) * 100).toFixed(1) : '0';
+                const isUnclassifiedIncrease = unclassifiedDiff >= 0;
+                const maxUnclassified = Math.max(lastUnclassified, thisUnclassified, 1);
+                
+                return (
+                  <div className="flex flex-col">
+                    <div className="flex items-end justify-center gap-12 mb-3">
+                      <div className="flex flex-col items-center">
+                        <span className="text-xl font-bold text-gray-500 mb-1">{lastUnclassified}건</span>
+                        <div className="w-20 bg-gray-400 rounded-t-lg" style={{ height: `${Math.max((lastUnclassified / maxUnclassified) * 80, 10)}px` }} />
+                        <span className="mt-2 text-sm text-gray-500">지난주 ({LAST_WEEK.label})</span>
+                      </div>
+                      <div className="flex flex-col items-center">
+                        <span className="text-xl font-bold text-gray-600 mb-1">{thisUnclassified}건</span>
+                        <div className="w-20 bg-gray-500 rounded-t-lg" style={{ height: `${Math.max((thisUnclassified / maxUnclassified) * 80, 10)}px` }} />
+                        <span className="mt-2 text-sm text-gray-500">이번주 ({THIS_WEEK.label})</span>
+                      </div>
+                    </div>
+                    <div className="flex justify-center">
+                      <span className={`px-4 py-1 rounded-full text-white text-sm font-medium ${isUnclassifiedIncrease ? 'bg-green-500' : 'bg-red-500'}`}>
+                        {isUnclassifiedIncrease ? '▲' : '▼'} {Math.abs(unclassifiedDiff)}건 ({isUnclassifiedIncrease ? '+' : ''}{unclassifiedDiffPercent}%)
+                      </span>
+                    </div>
+                  </div>
+                );
+              })()}
+            </div>
+            <div className="flex-1"></div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
