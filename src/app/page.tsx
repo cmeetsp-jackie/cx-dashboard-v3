@@ -771,9 +771,8 @@ function RoadmapReview() {
             <div className="flex-1"></div>
           </div>
 
-          {/* 미분류 문의량 + AI 응답 (분리) */}
+          {/* 미분류 문의량 */}
           <div className="flex gap-6 mt-4">
-            {/* 미분류 문의량 */}
             <div className="bg-gray-100 rounded-xl p-4 flex-1">
               <h5 className="text-md font-semibold text-gray-600 mb-3">미분류 문의량 주간비교</h5>
               <p className="text-xs text-gray-400 mb-2">판매자/구매자/공통 태그가 없는 문의</p>
@@ -808,42 +807,7 @@ function RoadmapReview() {
                 );
               })()}
             </div>
-            
-            {/* AI 응답 건수 (케어드 전체 중) */}
-            <div className="bg-violet-50 rounded-xl p-4 flex-1">
-              <h5 className="text-md font-semibold text-violet-700 mb-3">AI 응답 건수 (케어드 전체)</h5>
-              <p className="text-xs text-violet-500 mb-2">담당자 없이 종료된 문의 (AI가 해결)</p>
-              {(() => {
-                const lastAi = lastWeekData?.caredSellerBuyerData?.caredAiResponse || 0;
-                const thisAi = thisWeekData?.caredSellerBuyerData?.caredAiResponse || 0;
-                const aiDiff = thisAi - lastAi;
-                const aiDiffPercent = lastAi > 0 ? ((aiDiff / lastAi) * 100).toFixed(1) : '0';
-                const isAiIncrease = aiDiff >= 0;
-                const maxAi = Math.max(lastAi, thisAi, 1);
-                
-                return (
-                  <div className="flex flex-col">
-                    <div className="flex items-end justify-center gap-12 mb-3">
-                      <div className="flex flex-col items-center">
-                        <span className="text-xl font-bold text-gray-600 mb-1">{lastAi}건</span>
-                        <div className="w-20 bg-violet-300 rounded-t-lg" style={{ height: `${(lastAi / maxAi) * 80}px` }} />
-                        <span className="mt-2 text-sm text-gray-500">지난주 ({LAST_WEEK.label})</span>
-                      </div>
-                      <div className="flex flex-col items-center">
-                        <span className="text-xl font-bold text-violet-600 mb-1">{thisAi}건</span>
-                        <div className="w-20 bg-violet-500 rounded-t-lg" style={{ height: `${(thisAi / maxAi) * 80}px` }} />
-                        <span className="mt-2 text-sm text-gray-500">이번주 ({THIS_WEEK.label})</span>
-                      </div>
-                    </div>
-                    <div className="flex justify-center">
-                      <span className={`px-4 py-1 rounded-full text-white text-sm font-medium ${isAiIncrease ? 'bg-green-500' : 'bg-red-500'}`}>
-                        {isAiIncrease ? '▲' : '▼'} {Math.abs(aiDiff)}건 ({isAiIncrease ? '+' : ''}{aiDiffPercent}%)
-                      </span>
-                    </div>
-                  </div>
-                );
-              })()}
-            </div>
+            <div className="flex-1"></div>
           </div>
         </div>
       )}
