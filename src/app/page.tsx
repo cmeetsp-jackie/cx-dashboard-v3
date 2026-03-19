@@ -150,6 +150,102 @@ function getPastDailyTabs(): { date: string; label: string }[] {
   return tabs;
 }
 
+// 로드맵리뷰 컴포넌트 - 지난주 vs 이번주 비교
+function RoadmapReview() {
+  const [lastWeekData, setLastWeekData] = useState<{ total: number } | null>(null);
+  const [thisWeekData, setThisWeekData] = useState<{ total: number } | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  // 지난주 = Week 1 (3/4~3/10), 이번주 = Week 2 (3/11~3/17)
+  const LAST_WEEK = { start: '2026-03-04', end: '2026-03-10', label: '3/4~3/10' };
+  const THIS_WEEK = { start: '2026-03-11', end: '2026-03-17', label: '3/11~3/17' };
+
+  useEffect(() => {
+    const fetchData = async () => {
+      setLoading(true);
+      try {
+        const [lastRes, thisRes] = await Promise.all([
+          fetch(`/api/stats?period=weekly&weekStart=${LAST_WEEK.start}&weekEnd=${LAST_WEEK.end}`),
+          fetch(`/api/stats?period=weekly&weekStart=${THIS_WEEK.start}&weekEnd=${THIS_WEEK.end}`),
+        ]);
+        const lastData = await lastRes.json();
+        const thisData = await thisRes.json();
+        setLastWeekData({ total: lastData.today?.total || 0 });
+        setThisWeekData({ total: thisData.today?.total || 0 });
+      } catch (e) {
+        console.error('Failed to fetch roadmap data', e);
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchData();
+  }, []);
+
+  const lastTotal = lastWeekData?.total || 0;
+  const thisTotal = thisWeekData?.total || 0;
+  const diff = thisTotal - lastTotal;
+  const diffPercent = lastTotal > 0 ? ((diff / lastTotal) * 100).toFixed(1) : '0';
+  const isIncrease = diff >= 0;
+  const maxValue = Math.max(lastTotal, thisTotal, 1);
+
+  return (
+    <div className="bg-white rounded-2xl p-8 shadow-xl min-h-[600px]">
+      <h2 className="text-2xl font-bold text-gray-800 mb-6 flex items-center gap-3">
+        🗺️ 로드맵 리뷰
+        <span className="text-sm font-normal text-gray-500">지난주 vs 이번주 비교</span>
+      </h2>
+
+      {/* 문의량 주간 비교 */}
+      <div className="bg-gray-50 rounded-xl p-6 mb-6">
+        <h3 className="text-lg font-semibold text-gray-700 mb-6">문의량 주간 비교</h3>
+        
+        {loading ? (
+          <div className="flex items-center justify-center h-64">
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-purple-500"></div>
+            <span className="ml-2 text-gray-500">데이터 로딩 중...</span>
+          </div>
+        ) : (
+          <>
+            {/* 바 차트 */}
+            <div className="flex items-end justify-center gap-16 h-64 mb-4">
+              {/* 지난주 바 */}
+              <div className="flex flex-col items-center">
+                <span className="text-lg font-bold text-gray-600 mb-2">{lastTotal}건</span>
+                <div 
+                  className="w-24 bg-gray-400 rounded-t-lg transition-all duration-500"
+                  style={{ height: `${(lastTotal / maxValue) * 200}px` }}
+                />
+                <span className="mt-3 text-sm text-gray-600">지난 주</span>
+                <span className="text-xs text-gray-400">({LAST_WEEK.label})</span>
+              </div>
+              
+              {/* 이번주 바 */}
+              <div className="flex flex-col items-center">
+                <span className="text-lg font-bold text-purple-600 mb-2">{thisTotal}건</span>
+                <div 
+                  className="w-24 bg-purple-500 rounded-t-lg transition-all duration-500"
+                  style={{ height: `${(thisTotal / maxValue) * 200}px` }}
+                />
+                <span className="mt-3 text-sm text-gray-600">이번 주</span>
+                <span className="text-xs text-gray-400">({THIS_WEEK.label})</span>
+              </div>
+            </div>
+
+            {/* 증감 표시 */}
+            <div className="flex justify-center">
+              <div className={`px-6 py-3 rounded-full text-white font-semibold ${
+                isIncrease ? 'bg-green-500' : 'bg-red-500'
+              }`}>
+                {isIncrease ? '▲' : '▼'} {isIncrease ? '증가' : '감소'}: {Math.abs(diff)}건 ({isIncrease ? '+' : ''}{diffPercent}%)
+              </div>
+            </div>
+          </>
+        )}
+      </div>
+    </div>
+  );
+}
+
 export default function Dashboard() {
   const [stats, setStats] = useState<Stats | null>(null);
   const [loading, setLoading] = useState(true);
@@ -404,15 +500,7 @@ export default function Dashboard() {
 
       {/* 로드맵리뷰 탭 컨텐츠 */}
       {activeTab === 'roadmap' && (
-        <div className="bg-white rounded-2xl p-8 shadow-xl min-h-[600px]">
-          <h2 className="text-2xl font-bold text-gray-800 mb-6 flex items-center gap-3">
-            🗺️ 로드맵 리뷰
-          </h2>
-          <div className="text-gray-500 text-center py-20">
-            <p className="text-lg">로드맵 리뷰 컨텐츠가 여기에 들어갑니다.</p>
-            <p className="text-sm mt-2">재키님과 함께 내용을 구성 중입니다.</p>
-          </div>
-        </div>
+        <RoadmapReview />
       )}
 
       {/* 기존 대시보드 컨텐츠 - 로드맵 탭이 아닐 때만 표시 */}
