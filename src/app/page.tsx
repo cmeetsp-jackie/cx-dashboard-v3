@@ -275,73 +275,116 @@ function RoadmapReview() {
 
   return (
     <div className="bg-white rounded-2xl p-8 shadow-xl min-h-[600px]">
-      {/* 제목 + 주단위 트래커 */}
-      <div className="flex items-center justify-between mb-6">
-        <h2 className="text-2xl font-bold text-gray-800 flex items-center gap-3">
-          🗺️ 로드맵 리뷰
-          <span className="text-sm font-normal text-gray-500">지난주 vs 이번주 비교</span>
-        </h2>
-        
-        {/* 1차 해결률 + 해결률&해결시간 트래커 */}
-        {!loading && (
-          <div className="flex items-center gap-6">
-            {/* 1차 해결률 */}
-            <div className="flex flex-col items-end gap-1">
-              <div className="flex items-center gap-3">
-                <span className="text-sm font-semibold text-gray-600">🎯 1차 해결률</span>
-                <div className="flex gap-2">
-                  {/* Week 1 */}
-                  <div className="flex flex-col items-center">
-                    <div className="w-14 h-14 rounded-full bg-gradient-to-br from-cyan-500 to-blue-600 border-3 border-cyan-300 flex flex-col items-center justify-center text-white shadow-lg">
-                      <span className="text-sm font-bold">{lastWeekData?.firstResolutionRate || 0}%</span>
-                      <span className="text-[9px]">{lastWeekData?.firstResolutionAssigned || 0}건</span>
-                    </div>
-                    <span className="text-[10px] text-gray-500 mt-1">W1</span>
-                  </div>
-                  {/* Week 2 */}
-                  <div className="flex flex-col items-center">
-                    <div className="w-14 h-14 rounded-full bg-gradient-to-br from-emerald-500 to-teal-600 border-3 border-emerald-300 flex flex-col items-center justify-center text-white shadow-lg">
-                      <span className="text-sm font-bold">{thisWeekData?.firstResolutionRate || 0}%</span>
-                      <span className="text-[9px]">{thisWeekData?.firstResolutionAssigned || 0}건</span>
-                    </div>
-                    <span className="text-[10px] text-gray-500 mt-1">W2</span>
-                  </div>
-                </div>
-              </div>
-              <span className="text-[9px] text-gray-400">당일 19시 전 해결 비율 (담당자 배정 건 기준)</span>
+      {/* 제목 */}
+      <h2 className="text-2xl font-bold text-gray-800 flex items-center gap-3 mb-6">
+        🗺️ 로드맵 리뷰
+        <span className="text-sm font-normal text-gray-500">지난주 vs 이번주 비교</span>
+      </h2>
+
+      {/* 🎯 1차 해결률 + 📅 해결률&해결시간 - 큰 섹션 */}
+      {!loading && (
+        <div className="flex gap-6 mb-8">
+          {/* 1차 해결률 카드 */}
+          <div className="flex-1 bg-gradient-to-br from-slate-800 to-slate-900 rounded-2xl p-6 shadow-xl">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-xl font-bold text-white flex items-center gap-2">
+                🎯 1차 해결률
+              </h3>
+              <span className="text-xs text-slate-400 bg-slate-700 px-3 py-1 rounded-full">
+                당일 19시 전 해결 (담당자 배정 건 기준)
+              </span>
             </div>
             
-            {/* 구분선 */}
-            <div className="h-16 w-px bg-gray-300"></div>
-            
-            {/* 해결률 & 해결시간 */}
-            <div className="flex flex-col items-end gap-1">
-              <div className="flex items-center gap-3">
-                <span className="text-sm font-semibold text-gray-600">📅 해결률 & 해결시간</span>
-                <div className="flex gap-2">
-                  {/* Week 1 */}
-                  <div className="flex flex-col items-center">
-                    <div className="w-14 h-14 rounded-full bg-gradient-to-br from-indigo-500 to-purple-600 border-3 border-indigo-300 flex flex-col items-center justify-center text-white shadow-lg">
-                      <span className="text-sm font-bold">{lastWeekData?.resolutionRate || 0}%</span>
-                      <span className="text-[9px]">{lastWeekData?.avgResolutionTimeMin || 0}분</span>
-                    </div>
-                    <span className="text-[10px] text-gray-500 mt-1">W1</span>
-                  </div>
-                  {/* Week 2 */}
-                  <div className="flex flex-col items-center">
-                    <div className="w-14 h-14 rounded-full bg-gradient-to-br from-rose-500 to-pink-600 border-3 border-rose-300 flex flex-col items-center justify-center text-white shadow-lg">
-                      <span className="text-sm font-bold">{thisWeekData?.resolutionRate || 0}%</span>
-                      <span className="text-[9px]">{thisWeekData?.avgResolutionTimeMin || 0}분</span>
-                    </div>
-                    <span className="text-[10px] text-gray-500 mt-1">W2</span>
-                  </div>
+            <div className="flex items-center justify-center gap-8">
+              {/* Week 1 */}
+              <div className="flex flex-col items-center">
+                <div className="w-24 h-24 rounded-full bg-gradient-to-br from-cyan-400 to-blue-600 border-4 border-cyan-300 flex flex-col items-center justify-center text-white shadow-2xl">
+                  <span className="text-2xl font-bold">{lastWeekData?.firstResolutionRate || 0}%</span>
+                  <span className="text-xs opacity-80">{lastWeekData?.firstResolutionAssigned || 0}건</span>
                 </div>
+                <span className="text-sm text-slate-300 mt-3 font-semibold">Week 1</span>
+                <span className="text-xs text-slate-500">{LAST_WEEK.label}</span>
               </div>
-              <span className="text-[9px] text-gray-400">종결 문의 ÷ 전체 문의 / 평균 해결 소요 시간</span>
+              
+              {/* 화살표 */}
+              <div className="text-3xl text-slate-500">→</div>
+              
+              {/* Week 2 */}
+              <div className="flex flex-col items-center">
+                <div className="w-24 h-24 rounded-full bg-gradient-to-br from-emerald-400 to-teal-600 border-4 border-emerald-300 flex flex-col items-center justify-center text-white shadow-2xl">
+                  <span className="text-2xl font-bold">{thisWeekData?.firstResolutionRate || 0}%</span>
+                  <span className="text-xs opacity-80">{thisWeekData?.firstResolutionAssigned || 0}건</span>
+                </div>
+                <span className="text-sm text-slate-300 mt-3 font-semibold">Week 2</span>
+                <span className="text-xs text-slate-500">{THIS_WEEK.label}</span>
+              </div>
+              
+              {/* 변화량 */}
+              <div className="ml-4">
+                {(() => {
+                  const diff = (thisWeekData?.firstResolutionRate || 0) - (lastWeekData?.firstResolutionRate || 0);
+                  const isUp = diff >= 0;
+                  return (
+                    <div className={`px-4 py-2 rounded-lg ${isUp ? 'bg-green-500/20 text-green-400' : 'bg-red-500/20 text-red-400'}`}>
+                      <span className="text-lg font-bold">{isUp ? '▲' : '▼'} {Math.abs(diff).toFixed(1)}%p</span>
+                    </div>
+                  );
+                })()}
+              </div>
             </div>
           </div>
-        )}
-      </div>
+
+          {/* 해결률 & 해결시간 카드 */}
+          <div className="flex-1 bg-gradient-to-br from-slate-800 to-slate-900 rounded-2xl p-6 shadow-xl">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-xl font-bold text-white flex items-center gap-2">
+                📅 해결률 & 해결시간
+              </h3>
+              <span className="text-xs text-slate-400 bg-slate-700 px-3 py-1 rounded-full">
+                종결 ÷ 전체 / 평균 소요 시간
+              </span>
+            </div>
+            
+            <div className="flex items-center justify-center gap-8">
+              {/* Week 1 */}
+              <div className="flex flex-col items-center">
+                <div className="w-24 h-24 rounded-full bg-gradient-to-br from-indigo-400 to-purple-600 border-4 border-indigo-300 flex flex-col items-center justify-center text-white shadow-2xl">
+                  <span className="text-2xl font-bold">{lastWeekData?.resolutionRate || 0}%</span>
+                  <span className="text-xs opacity-80">{lastWeekData?.avgResolutionTimeMin || 0}분</span>
+                </div>
+                <span className="text-sm text-slate-300 mt-3 font-semibold">Week 1</span>
+                <span className="text-xs text-slate-500">{LAST_WEEK.label}</span>
+              </div>
+              
+              {/* 화살표 */}
+              <div className="text-3xl text-slate-500">→</div>
+              
+              {/* Week 2 */}
+              <div className="flex flex-col items-center">
+                <div className="w-24 h-24 rounded-full bg-gradient-to-br from-rose-400 to-pink-600 border-4 border-rose-300 flex flex-col items-center justify-center text-white shadow-2xl">
+                  <span className="text-2xl font-bold">{thisWeekData?.resolutionRate || 0}%</span>
+                  <span className="text-xs opacity-80">{thisWeekData?.avgResolutionTimeMin || 0}분</span>
+                </div>
+                <span className="text-sm text-slate-300 mt-3 font-semibold">Week 2</span>
+                <span className="text-xs text-slate-500">{THIS_WEEK.label}</span>
+              </div>
+              
+              {/* 변화량 */}
+              <div className="ml-4">
+                {(() => {
+                  const diff = (thisWeekData?.resolutionRate || 0) - (lastWeekData?.resolutionRate || 0);
+                  const isUp = diff >= 0;
+                  return (
+                    <div className={`px-4 py-2 rounded-lg ${isUp ? 'bg-green-500/20 text-green-400' : 'bg-red-500/20 text-red-400'}`}>
+                      <span className="text-lg font-bold">{isUp ? '▲' : '▼'} {Math.abs(diff).toFixed(1)}%p</span>
+                    </div>
+                  );
+                })()}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* 전체 문의량 + Contact Rate 양옆 배치 */}
       <div className="flex gap-6 mb-6">
