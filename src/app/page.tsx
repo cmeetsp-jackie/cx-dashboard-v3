@@ -2122,12 +2122,12 @@ export default function Dashboard() {
                 const lastDay = weekDays[6].date;
                 
                 // 1차 해결률 데이터 (API에서 가져옴)
-                const firstResolutionData: Record<string, { rate: number; assigned: number }> = {};
+                const firstResolutionData: Record<string, { rate: number; assigned: number; resolvedBefore19: number }> = {};
                 if (stats?.firstResolutionRates) {
-                  stats.firstResolutionRates.forEach(item => {
+                  stats.firstResolutionRates.forEach((item: any) => {
                     const [year, month, day] = item.date.split('-');
                     const key = `${parseInt(month)}/${parseInt(day)}`;
-                    firstResolutionData[key] = { rate: item.rate, assigned: item.assigned };
+                    firstResolutionData[key] = { rate: item.rate, assigned: item.assigned, resolvedBefore19: item.resolvedBefore19 || 0 };
                   });
                 }
                 
@@ -2166,12 +2166,18 @@ export default function Dashboard() {
                             <span className={`mt-1 text-xs font-medium ${isToday ? 'text-emerald-300' : 'text-white/80'}`}>
                               {item.date}
                             </span>
+                            {/* 세부 데이터 */}
+                            {hasData && (
+                              <div className="mt-1 text-[8px] text-white/50 text-center leading-tight">
+                                <div>배정 {data.assigned}건</div>
+                                <div>19시전 {data.resolvedBefore19}건</div>
+                              </div>
+                            )}
                           </div>
                         );
                       })}
                     </div>
-                    <p className="text-center text-white/50 text-[10px] mt-2">* 1차 해결률(%) / 담당자 배정건</p>
-                    <p className="text-center text-white/40 text-[9px] mt-1 max-w-xs">정의: 당일 문의 중 담당자 배정 건 기준, 당일 19시 전 해결 비율</p>
+                    <p className="text-center text-white/50 text-[10px] mt-2">* 1차 해결률(%) = 19시전 해결 ÷ 담당자 배정</p>
                   </>
                 );
               })()}
@@ -2258,19 +2264,18 @@ export default function Dashboard() {
                             <span className={`mt-1 text-xs font-medium ${isToday ? 'text-rose-300' : 'text-white/80'}`}>
                               {item.date}
                             </span>
+                            {/* 세부 데이터 */}
+                            {dayData && (
+                              <div className="mt-1 text-[8px] text-white/50 text-center leading-tight">
+                                <div>전체 {dayData.total}건</div>
+                                <div>종결 {dayData.closed}건</div>
+                              </div>
+                            )}
                           </div>
                         );
                       })}
                     </div>
-                    <p className="text-center text-white/50 text-[10px] mt-2">* 해결률(%) / 평균해결시간(분)</p>
-                    <div className="mt-3 pt-3 border-t border-white/20">
-                      <p className="text-center text-white/60 text-[10px]">
-                        <span className="font-semibold">해결률</span> = 종결된 문의 ÷ 전체 문의 × 100
-                      </p>
-                      <p className="text-center text-white/60 text-[10px] mt-1">
-                        <span className="font-semibold">해결시간</span> = 문의 생성 → 종결까지 평균 소요 시간
-                      </p>
-                    </div>
+                    <p className="text-center text-white/50 text-[10px] mt-2">* 해결률(%) = 종결 ÷ 전체 / 평균해결시간(분)</p>
                   </>
                 );
               })()}

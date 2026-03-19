@@ -214,6 +214,7 @@ async function fetchFirstResolutionRate(startDate: string, endDate: string): Pro
   return (result.data || []).map((row: any) => ({
     date: row.date,
     assigned: Number(row.assigned),
+    resolvedBefore19: Number(row.resolved_before_19),
     rate: row.assigned > 0 ? Math.round((Number(row.resolved_before_19) / Number(row.assigned)) * 1000) / 10 : 0
   }))
 }
