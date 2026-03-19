@@ -265,13 +265,24 @@ function RoadmapReview() {
         {/* 전체 문의 Contact Rate */}
         {!loading && (
           <div className="bg-gray-50 rounded-xl p-6 flex-1">
-          <div className="flex justify-between items-start mb-6">
+          <div className="flex justify-between items-start mb-4">
             <h3 className="text-lg font-semibold text-gray-700">전체 문의 Contact Rate</h3>
-            <div className="text-right">
-              <span className="text-xs text-blue-600 bg-blue-50 px-2 py-1 rounded">
-                Contact Rate = 문의건수 ÷ (주문수 + 백신청자수)
-              </span>
-            </div>
+          </div>
+          
+          {/* Why Contact Rate 설명 */}
+          <div className="bg-amber-50 border-l-4 border-amber-400 p-3 mb-4 text-sm">
+            <p className="font-semibold text-amber-800 mb-1">Why Contact Rate(문의율)?</p>
+            <p className="text-amber-700">
+              "주문은 했는데 왜 문의를 했을까?"를 파악하면 상품 설명 부족, 배송 안내 미흡 등 구체적인 개선 포인트를 찾을 수 있고, 
+              문의율이 높아지고 있다는 것은 고객이 서비스를 이용하는 과정에서 <span className="font-semibold">흐름이 끊기거나(friction) 궁금증이 해결되지 않는 지점</span>이 많다는 뜻입니다.
+            </p>
+          </div>
+          
+          {/* Contact Rate 정의 */}
+          <div className="flex justify-end mb-4">
+            <span className="text-xs text-blue-600 bg-blue-50 px-2 py-1 rounded">
+              Contact Rate = 문의건수 ÷ (주문수 + 백신청자수)
+            </span>
           </div>
           
           {(() => {
