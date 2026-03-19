@@ -99,10 +99,11 @@ function getPastDailyTabs(): { date: string; label: string }[] {
   const today = formatDate(kstNow);
   const tabs = [];
   
-  // 마지막 완료 주간 다음날부터 시작 (Week 1이 3/10까지이므로 3/11부터)
-  const lastCompletedWeekEnd = '2026-03-10';
+  // 마지막 완료 주간 다음날부터 시작
+  // Week 2가 3/17까지 완료되었으므로 3/18부터 시작
+  const lastCompletedWeekEnd = '2026-03-17';
   const startDate = new Date(lastCompletedWeekEnd);
-  startDate.setUTCDate(startDate.getUTCDate() + 1);  // 3/11
+  startDate.setUTCDate(startDate.getUTCDate() + 1);  // 3/18
   
   const current = new Date(startDate);
   while (formatDate(current) < today) {
