@@ -2105,6 +2105,160 @@ export default function Dashboard() {
           </div>
         </div>
       )}
+
+      {/* Weekly 탭용 주단위 트래커 */}
+      {activeTab === 'weekly' && (
+        <div className="-mt-2 py-2">
+          <div className="flex justify-center items-start gap-8">
+            {/* 1차 해결률 트래커 (주단위) */}
+            <div className="flex flex-col items-center">
+              {(() => {
+                // Week 1, Week 2 정의
+                const weeks = [
+                  { id: 'week1', label: 'Week 1', range: '3/5~3/11', start: '2026-03-05', end: '2026-03-11' },
+                  { id: 'week2', label: 'Week 2', range: '3/12~3/18', start: '2026-03-12', end: '2026-03-18' },
+                ];
+                
+                // 1차 해결률 데이터 주단위로 집계
+                const weeklyFirstResolution: { label: string; range: string; rate: number; assigned: number }[] = [];
+                
+                weeks.forEach(week => {
+                  let totalAssigned = 0;
+                  let totalResolvedBefore19 = 0;
+                  
+                  if (stats?.firstResolutionRates) {
+                    stats.firstResolutionRates.forEach(item => {
+                      if (item.date >= week.start && item.date <= week.end) {
+                        totalAssigned += item.assigned;
+                        totalResolvedBefore19 += Math.round(item.assigned * item.rate / 100);
+                      }
+                    });
+                  }
+                  
+                  const rate = totalAssigned > 0 ? Math.round((totalResolvedBefore19 / totalAssigned) * 1000) / 10 : 0;
+                  weeklyFirstResolution.push({ label: week.label, range: week.range, rate, assigned: totalAssigned });
+                });
+                
+                return (
+                  <>
+                    <h3 className="text-white font-bold mb-3 text-center text-lg">🎯 1차 해결률 (주단위)</h3>
+                    <div className="flex items-end gap-6">
+                      {weeklyFirstResolution.map((item, idx) => {
+                        const isCurrentWeek = item.label === `Week ${completedWeeks.length}`;
+                        const hasData = item.assigned > 0;
+                        
+                        return (
+                          <div key={idx} className="flex flex-col items-center">
+                            <div className="h-6 mb-2"></div>
+                            
+                            <div className={`w-20 h-20 rounded-full flex flex-col items-center justify-center shadow-lg border-4 ${
+                              isCurrentWeek 
+                                ? 'bg-gradient-to-br from-emerald-500 to-teal-600 border-emerald-300 text-white' 
+                                : hasData
+                                  ? 'bg-gradient-to-br from-cyan-500 to-blue-600 border-cyan-300 text-white'
+                                  : 'bg-gradient-to-br from-gray-400 to-gray-500 border-gray-300 text-white'
+                            }`}>
+                              <span className="text-lg font-bold">{hasData ? `${item.rate}%` : '-'}</span>
+                              <span className="text-xs">{hasData ? `${item.assigned}건` : '-'}</span>
+                            </div>
+                            
+                            <span className="mt-2 text-sm font-semibold text-white">{item.label}</span>
+                            <span className="text-xs text-white/60">{item.range}</span>
+                          </div>
+                        );
+                      })}
+                    </div>
+                    <p className="text-center text-white/50 text-[10px] mt-3">* 1차 해결률(%) / 담당자 배정건</p>
+                    <p className="text-center text-white/40 text-[9px] mt-1 max-w-xs">정의: 해당 주 문의 중 담당자 배정 건 기준, 당일 19시 전 해결 비율</p>
+                  </>
+                );
+              })()}
+            </div>
+
+            {/* 구분선 */}
+            <div className="h-32 w-px bg-white/30 self-center"></div>
+
+            {/* 해결률 & 해결시간 트래커 (주단위) */}
+            <div className="flex flex-col items-center">
+              {(() => {
+                // Week 1, Week 2 정의
+                const weeks = [
+                  { id: 'week1', label: 'Week 1', range: '3/5~3/11', start: '2026-03-05', end: '2026-03-11' },
+                  { id: 'week2', label: 'Week 2', range: '3/12~3/18', start: '2026-03-12', end: '2026-03-18' },
+                ];
+                
+                // 해결률 & 해결시간 데이터 주단위로 집계
+                const weeklyResolution: { label: string; range: string; rate: number; time: number; total: number; closed: number }[] = [];
+                
+                weeks.forEach(week => {
+                  let totalCount = 0;
+                  let closedCount = 0;
+                  let totalResolutionTime = 0;
+                  let resolutionTimeCount = 0;
+                  
+                  if (stats?.dailyResolutionStats) {
+                    stats.dailyResolutionStats.forEach(item => {
+                      if (item.date >= week.start && item.date <= week.end) {
+                        totalCount += item.total;
+                        closedCount += item.closed;
+                        if (item.avgResolutionTimeMin > 0) {
+                          totalResolutionTime += item.avgResolutionTimeMin * item.closed;
+                          resolutionTimeCount += item.closed;
+                        }
+                      }
+                    });
+                  }
+                  
+                  const rate = totalCount > 0 ? Math.round((closedCount / totalCount) * 1000) / 10 : 0;
+                  const avgTime = resolutionTimeCount > 0 ? Math.round(totalResolutionTime / resolutionTimeCount) : 0;
+                  weeklyResolution.push({ label: week.label, range: week.range, rate, time: avgTime, total: totalCount, closed: closedCount });
+                });
+                
+                return (
+                  <>
+                    <h3 className="text-white font-bold mb-3 text-center text-lg">📅 해결률 & 해결시간 (주단위)</h3>
+                    <div className="flex items-end gap-6">
+                      {weeklyResolution.map((item, idx) => {
+                        const isCurrentWeek = item.label === `Week ${completedWeeks.length}`;
+                        const hasData = item.total > 0;
+                        
+                        return (
+                          <div key={idx} className="flex flex-col items-center">
+                            <div className="h-6 mb-2"></div>
+                            
+                            <div className={`w-20 h-20 rounded-full flex flex-col items-center justify-center shadow-lg border-4 ${
+                              isCurrentWeek 
+                                ? 'bg-gradient-to-br from-rose-500 to-pink-600 border-rose-300 text-white' 
+                                : hasData
+                                  ? 'bg-gradient-to-br from-indigo-500 to-purple-600 border-indigo-300 text-white'
+                                  : 'bg-gradient-to-br from-gray-400 to-gray-500 border-gray-300 text-white'
+                            }`}>
+                              <span className="text-lg font-bold">{hasData ? `${item.rate}%` : '-'}</span>
+                              <span className="text-xs">{hasData ? `${item.time}분` : '-'}</span>
+                            </div>
+                            
+                            <span className="mt-2 text-sm font-semibold text-white">{item.label}</span>
+                            <span className="text-xs text-white/60">{item.range}</span>
+                          </div>
+                        );
+                      })}
+                    </div>
+                    <p className="text-center text-white/50 text-[10px] mt-3">* 해결률(%) / 평균해결시간(분)</p>
+                    <div className="mt-3 pt-3 border-t border-white/20">
+                      <p className="text-center text-white/60 text-[10px]">
+                        <span className="font-semibold">해결률</span> = 종결된 문의 ÷ 전체 문의 × 100
+                      </p>
+                      <p className="text-center text-white/60 text-[10px] mt-1">
+                        <span className="font-semibold">해결시간</span> = 문의 생성 → 종결까지 평균 소요 시간
+                      </p>
+                    </div>
+                  </>
+                );
+              })()}
+            </div>
+          </div>
+        </div>
+      )}
         </>
       )}
     </div>
