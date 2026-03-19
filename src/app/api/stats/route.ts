@@ -224,6 +224,53 @@ async function fetchDailyResolutionStats(startDate: string, endDate: string): Pr
   })
 }
 
+// Contact Rate 계산용: 주문수 + 백 신청자 수 조회
+async function fetchContactRateData(startDate: string, endDate: string): Promise<{ orders: number; bagRequesters: number }> {
+  const auth = Buffer.from(`${CLICKHOUSE_USER}:${CLICKHOUSE_PASSWORD}`).toString('base64')
+  
+  // 주문수 쿼리
+  const ordersQuery = `
+    SELECT count(DISTINCT id) as order_count
+    FROM orders.item_orders 
+    WHERE toDate(order_started_at) >= '${startDate}' AND toDate(order_started_at) <= '${endDate}'
+    FORMAT JSON
+  `
+  
+  // 백 신청자 수 쿼리
+  const bagQuery = `
+    SELECT count(DISTINCT charan_user_id) as bag_requesters
+    FROM rawdata_charan.charan_bag_orders 
+    WHERE toDate(created_at) >= '${startDate}' AND toDate(created_at) <= '${endDate}'
+    FORMAT JSON
+  `
+  
+  try {
+    const [ordersRes, bagRes] = await Promise.all([
+      fetch(`http://${CLICKHOUSE_HOST}:${CLICKHOUSE_PORT}/`, {
+        method: 'POST',
+        headers: { 'Authorization': `Basic ${auth}`, 'Content-Type': 'text/plain' },
+        body: ordersQuery,
+      }),
+      fetch(`http://${CLICKHOUSE_HOST}:${CLICKHOUSE_PORT}/`, {
+        method: 'POST',
+        headers: { 'Authorization': `Basic ${auth}`, 'Content-Type': 'text/plain' },
+        body: bagQuery,
+      }),
+    ])
+    
+    const ordersData = await ordersRes.json()
+    const bagData = await bagRes.json()
+    
+    return {
+      orders: Number(ordersData.data?.[0]?.order_count || 0),
+      bagRequesters: Number(bagData.data?.[0]?.bag_requesters || 0),
+    }
+  } catch (e) {
+    console.error('Failed to fetch contact rate data:', e)
+    return { orders: 0, bagRequesters: 0 }
+  }
+}
+
 // ClickHouse에서 데이터 조회 (주간 데이터용)
 async function fetchChatsFromClickHouse(startDate: string, endDate: string): Promise<Chat[]> {
   const query = `
@@ -493,6 +540,12 @@ export async function GET(request: Request) {
     
     const firstResolutionRates = await fetchFirstResolutionRate(statsStartDate, statsEndDate)
     const dailyResolutionStats = await fetchDailyResolutionStats(statsStartDate, statsEndDate)
+    
+    // Contact Rate용 주문수/백신청자 수 (주간일 때만 조회)
+    let contactRateData = null
+    if (period === 'weekly' && weekStart && weekEnd) {
+      contactRateData = await fetchContactRateData(weekStart, weekEnd)
+    }
 
     // 마켓/케어드 분리
     const todayMarket = todayChats.filter(c => classifyProduct(c) === 'market')
@@ -536,6 +589,7 @@ export async function GET(request: Request) {
       },
       firstResolutionRates: firstResolutionRates,
       dailyResolutionStats: dailyResolutionStats,
+      contactRateData: contactRateData,
       generatedAt: new Date().toISOString(),
     })
   } catch (error) {

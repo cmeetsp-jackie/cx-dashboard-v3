@@ -155,6 +155,7 @@ interface WeekData {
   total: number;
   market: number;
   cared: number;
+  contactRateData?: { orders: number; bagRequesters: number };
 }
 
 function RoadmapReview() {
@@ -165,12 +166,6 @@ function RoadmapReview() {
   // 지난주 = Week 1 (3/4~3/10), 이번주 = Week 2 (3/11~3/17)
   const LAST_WEEK = { start: '2026-03-04', end: '2026-03-10', label: '3/4~3/10' };
   const THIS_WEEK = { start: '2026-03-11', end: '2026-03-17', label: '3/11~3/17' };
-
-  // TODO: OPS View API에서 가져와야 함 (현재는 하드코딩)
-  const orderData = {
-    lastWeek: { orders: 4311, bagRequests: 3108 },  // 주문수 + 백 신청자 수
-    thisWeek: { orders: 3558, bagRequests: 3294 },
-  };
 
   useEffect(() => {
     const fetchData = async () => {
@@ -186,11 +181,13 @@ function RoadmapReview() {
           total: lastData.today?.total || 0,
           market: lastData.today?.byProduct?.market || 0,
           cared: lastData.today?.byProduct?.cared || 0,
+          contactRateData: lastData.contactRateData || { orders: 0, bagRequesters: 0 },
         });
         setThisWeekData({ 
           total: thisData.today?.total || 0,
           market: thisData.today?.byProduct?.market || 0,
           cared: thisData.today?.byProduct?.cared || 0,
+          contactRateData: thisData.contactRateData || { orders: 0, bagRequesters: 0 },
         });
       } catch (e) {
         console.error('Failed to fetch roadmap data', e);
@@ -215,9 +212,9 @@ function RoadmapReview() {
         <span className="text-sm font-normal text-gray-500">지난주 vs 이번주 비교</span>
       </h2>
 
-      {/* 문의량 주간 비교 */}
+      {/* 전체(케어드+마켓) 문의량 주간비교 */}
       <div className="bg-gray-50 rounded-xl p-6 mb-6">
-        <h3 className="text-lg font-semibold text-gray-700 mb-6">문의량 주간 비교</h3>
+        <h3 className="text-lg font-semibold text-gray-700 mb-6">전체(케어드+마켓) 문의량 주간비교</h3>
         
         {loading ? (
           <div className="flex items-center justify-center h-64">
@@ -269,9 +266,14 @@ function RoadmapReview() {
           <h3 className="text-lg font-semibold text-gray-700 mb-6">전체 문의 Contact Rate</h3>
           
           {(() => {
-            // Contact Rate 계산
-            const lastDenominator = orderData.lastWeek.orders + orderData.lastWeek.bagRequests;
-            const thisDenominator = orderData.thisWeek.orders + orderData.thisWeek.bagRequests;
+            // Contact Rate 계산 (ClickHouse에서 가져온 실제 데이터)
+            const lastOrders = lastWeekData?.contactRateData?.orders || 0;
+            const lastBagRequesters = lastWeekData?.contactRateData?.bagRequesters || 0;
+            const thisOrders = thisWeekData?.contactRateData?.orders || 0;
+            const thisBagRequesters = thisWeekData?.contactRateData?.bagRequesters || 0;
+            
+            const lastDenominator = lastOrders + lastBagRequesters;
+            const thisDenominator = thisOrders + thisBagRequesters;
             const lastContactRate = lastDenominator > 0 ? (lastTotal / lastDenominator) * 100 : 0;
             const thisContactRate = thisDenominator > 0 ? (thisTotal / thisDenominator) * 100 : 0;
             const contactRateDiff = thisContactRate - lastContactRate;
@@ -341,7 +343,7 @@ function RoadmapReview() {
                     <p className="font-semibold text-gray-700 mb-2">• 지난 주 전체 Contact Rate : {lastContactRate.toFixed(1)}%</p>
                     <div className="ml-4 text-gray-600">
                       <p className="mb-1">◦ 구매 고객님 문의건수 : {lastWeekData?.market || 0}건 + 판매 고객님 문의건수 : {lastWeekData?.cared || 0}건 = <span className="font-semibold">{lastTotal}건</span></p>
-                      <p className="mb-1">◦ <span className="underline">주문수 : {orderData.lastWeek.orders.toLocaleString()}건</span> + <span className="underline">백 신청자 수 : {orderData.lastWeek.bagRequests.toLocaleString()}건</span> = <span className="font-semibold">{lastDenominator.toLocaleString()}건</span></p>
+                      <p className="mb-1">◦ <span className="underline">주문수 : {lastOrders.toLocaleString()}건</span> + <span className="underline">백 신청자 수 : {lastBagRequesters.toLocaleString()}건</span> = <span className="font-semibold">{lastDenominator.toLocaleString()}건</span></p>
                     </div>
                   </div>
                   
@@ -354,7 +356,7 @@ function RoadmapReview() {
                     </p>
                     <div className="ml-4 text-gray-600">
                       <p className="mb-1">◦ 구매 고객님 문의건수 : {thisWeekData?.market || 0}건 + 판매 고객님 문의건수 : {thisWeekData?.cared || 0}건 = <span className="font-semibold">{thisTotal}건</span></p>
-                      <p className="mb-1">◦ <span className="underline">주문수 : {orderData.thisWeek.orders.toLocaleString()}건</span> + <span className="underline">백 신청자 수 : {orderData.thisWeek.bagRequests.toLocaleString()}건</span> = <span className="font-semibold">{thisDenominator.toLocaleString()}건</span></p>
+                      <p className="mb-1">◦ <span className="underline">주문수 : {thisOrders.toLocaleString()}건</span> + <span className="underline">백 신청자 수 : {thisBagRequesters.toLocaleString()}건</span> = <span className="font-semibold">{thisDenominator.toLocaleString()}건</span></p>
                     </div>
                   </div>
                 </div>
