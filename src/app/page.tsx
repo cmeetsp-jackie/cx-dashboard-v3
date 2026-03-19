@@ -155,7 +155,7 @@ interface WeekData {
   total: number;
   market: number;
   cared: number;
-  contactRateData?: { orders: number; bagRequesters: number };
+  contactRateData?: { orders: number; caredOrders: number; bagRequesters: number };
 }
 
 function RoadmapReview() {
@@ -181,13 +181,13 @@ function RoadmapReview() {
           total: lastData.today?.total || 0,
           market: lastData.today?.byProduct?.market || 0,
           cared: lastData.today?.byProduct?.cared || 0,
-          contactRateData: lastData.contactRateData || { orders: 0, bagRequesters: 0 },
+          contactRateData: lastData.contactRateData || { orders: 0, caredOrders: 0, bagRequesters: 0 },
         });
         setThisWeekData({ 
           total: thisData.today?.total || 0,
           market: thisData.today?.byProduct?.market || 0,
           cared: thisData.today?.byProduct?.cared || 0,
-          contactRateData: thisData.contactRateData || { orders: 0, bagRequesters: 0 },
+          contactRateData: thisData.contactRateData || { orders: 0, caredOrders: 0, bagRequesters: 0 },
         });
       } catch (e) {
         console.error('Failed to fetch roadmap data', e);
@@ -458,19 +458,23 @@ function RoadmapReview() {
           {/* Contact Rate 정의 */}
           <div className="flex justify-end mb-4">
             <span className="text-xs text-orange-600 bg-orange-50 px-2 py-1 rounded">
-              케어드 Contact Rate = 케어드 문의건수 ÷ 백신청자수
+              케어드 Contact Rate = 케어드 문의건수 ÷ (케어드 주문건수 + 백신청자수)
             </span>
           </div>
           
           {(() => {
-            // 케어드 Contact Rate 계산
+            // 케어드 Contact Rate 계산 (케어드 문의건수 ÷ (케어드 주문건수 + 백신청자수))
             const lastCared = lastWeekData?.cared || 0;
             const thisCared = thisWeekData?.cared || 0;
+            const lastCaredOrders = lastWeekData?.contactRateData?.caredOrders || 0;
+            const thisCaredOrders = thisWeekData?.contactRateData?.caredOrders || 0;
             const lastBagRequesters = lastWeekData?.contactRateData?.bagRequesters || 0;
             const thisBagRequesters = thisWeekData?.contactRateData?.bagRequesters || 0;
             
-            const lastCaredContactRate = lastBagRequesters > 0 ? (lastCared / lastBagRequesters) * 100 : 0;
-            const thisCaredContactRate = thisBagRequesters > 0 ? (thisCared / thisBagRequesters) * 100 : 0;
+            const lastCaredDenominator = lastCaredOrders + lastBagRequesters;
+            const thisCaredDenominator = thisCaredOrders + thisBagRequesters;
+            const lastCaredContactRate = lastCaredDenominator > 0 ? (lastCared / lastCaredDenominator) * 100 : 0;
+            const thisCaredContactRate = thisCaredDenominator > 0 ? (thisCared / thisCaredDenominator) * 100 : 0;
             const caredContactRateDiff = thisCaredContactRate - lastCaredContactRate;
             const maxCaredRate = Math.max(lastCaredContactRate, thisCaredContactRate, 15);
 
@@ -537,7 +541,8 @@ function RoadmapReview() {
                   <div className="mb-4">
                     <p className="font-semibold text-gray-700 mb-2">• 지난 주 케어드 Contact Rate : {lastCaredContactRate.toFixed(1)}%</p>
                     <div className="ml-4 text-gray-600">
-                      <p className="mb-1">◦ 케어드 문의건수 : {lastCared}건 ÷ 백 신청자 수 : {lastBagRequesters.toLocaleString()}건</p>
+                      <p className="mb-1">◦ 케어드 문의건수 : {lastCared}건</p>
+                      <p className="mb-1">◦ <span className="underline">케어드 주문수 : {lastCaredOrders.toLocaleString()}건</span> + <span className="underline">백 신청자 수 : {lastBagRequesters.toLocaleString()}건</span> = <span className="font-semibold">{lastCaredDenominator.toLocaleString()}건</span></p>
                     </div>
                   </div>
                   
@@ -549,7 +554,8 @@ function RoadmapReview() {
                       </span>
                     </p>
                     <div className="ml-4 text-gray-600">
-                      <p className="mb-1">◦ 케어드 문의건수 : {thisCared}건 ÷ 백 신청자 수 : {thisBagRequesters.toLocaleString()}건</p>
+                      <p className="mb-1">◦ 케어드 문의건수 : {thisCared}건</p>
+                      <p className="mb-1">◦ <span className="underline">케어드 주문수 : {thisCaredOrders.toLocaleString()}건</span> + <span className="underline">백 신청자 수 : {thisBagRequesters.toLocaleString()}건</span> = <span className="font-semibold">{thisCaredDenominator.toLocaleString()}건</span></p>
                     </div>
                   </div>
                 </div>
