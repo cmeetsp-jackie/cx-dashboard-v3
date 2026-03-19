@@ -313,8 +313,8 @@ function RoadmapReview() {
                       style={{ left: '20%', top: `${100 - (lastContactRate / maxRate) * 100}%` }}
                     />
                     <div 
-                      className="absolute text-sm font-semibold text-gray-600 transform -translate-x-1/2"
-                      style={{ left: '20%', top: `${100 - (lastContactRate / maxRate) * 100 - 8}%` }}
+                      className="absolute text-sm font-semibold text-gray-600 transform -translate-x-1/2 bg-gray-50 px-1 rounded"
+                      style={{ left: '20%', top: `${Math.max(100 - (lastContactRate / maxRate) * 100 - 15, 0)}%` }}
                     >
                       {lastContactRate.toFixed(1)}%
                     </div>
@@ -325,8 +325,8 @@ function RoadmapReview() {
                       style={{ left: '80%', top: `${100 - (thisContactRate / maxRate) * 100}%` }}
                     />
                     <div 
-                      className="absolute text-sm font-semibold text-red-500 transform -translate-x-1/2"
-                      style={{ left: '80%', top: `${100 - (thisContactRate / maxRate) * 100 - 8}%` }}
+                      className="absolute text-sm font-semibold text-red-500 transform -translate-x-1/2 bg-gray-50 px-1 rounded"
+                      style={{ left: '80%', top: `${Math.max(100 - (thisContactRate / maxRate) * 100 - 15, 0)}%` }}
                     >
                       {thisContactRate.toFixed(1)}%
                     </div>
