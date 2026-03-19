@@ -481,9 +481,9 @@ export default function Dashboard() {
         <div className="col-span-8 space-y-4">
           {/* Top Stats Row */}
           <div className="grid grid-cols-6 gap-4">
-            <div className="bg-white rounded-xl p-4 shadow-lg">
+            <div className="bg-white rounded-xl p-4 shadow-lg min-w-0">
               <p className="text-gray-500 text-sm">{activeTab !== 'weekly' ? '오늘 문의건수 / 어제' : '주간 문의건수 / 전주'}</p>
-              <p className="text-3xl font-bold">
+              <p className="text-xl font-bold whitespace-nowrap">
                 <span className="text-blue-600">{loading ? '-' : stats?.today.total || 0}</span>
                 <span className="text-gray-400 mx-1">/</span>
                 <span className="text-gray-500">{loading ? '-' : stats?.yesterday.total || 0}</span>
