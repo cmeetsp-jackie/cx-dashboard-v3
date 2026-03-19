@@ -580,8 +580,21 @@ export async function GET(request: Request) {
       statsEndDate = statsStartDate
     }
     
-    const firstResolutionRates = await fetchFirstResolutionRate(statsStartDate, statsEndDate)
-    const dailyResolutionStats = await fetchDailyResolutionStats(statsStartDate, statsEndDate)
+    // 하단 7일 트래커용: daily/pastDaily일 때도 최근 7일 데이터 조회
+    let trackerStartDate = statsStartDate
+    let trackerEndDate = statsEndDate
+    if (period !== 'weekly') {
+      // 오늘 기준 최근 7일
+      const now = new Date()
+      const kstNow = new Date(now.getTime() + 9 * 60 * 60 * 1000)
+      const sevenDaysAgo = new Date(kstNow)
+      sevenDaysAgo.setUTCDate(sevenDaysAgo.getUTCDate() - 6)
+      trackerStartDate = sevenDaysAgo.toISOString().split('T')[0]
+      trackerEndDate = kstNow.toISOString().split('T')[0]
+    }
+    
+    const firstResolutionRates = await fetchFirstResolutionRate(trackerStartDate, trackerEndDate)
+    const dailyResolutionStats = await fetchDailyResolutionStats(trackerStartDate, trackerEndDate)
     
     // Contact Rate용 주문수/백신청자 수 (주간일 때만 조회)
     let contactRateData = null
