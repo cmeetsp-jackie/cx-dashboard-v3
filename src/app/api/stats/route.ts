@@ -224,6 +224,43 @@ async function fetchDailyResolutionStats(startDate: string, endDate: string): Pr
   })
 }
 
+// 케어드 판매자/구매자 문의 건수 조회 (태그 기반)
+async function fetchCaredSellerBuyerInquiries(startDate: string, endDate: string): Promise<{ caredSeller: number; caredBuyer: number }> {
+  const auth = Buffer.from(`${CLICKHOUSE_USER}:${CLICKHOUSE_PASSWORD}`).toString('base64')
+  
+  const query = `
+    SELECT 
+      countIf(
+        (has(tags, '케어드') OR (NOT has(tags, '마켓') AND NOT has(tags, 'market')))
+        AND arrayExists(x -> x LIKE '판매자/%', tags)
+      ) as cared_seller,
+      countIf(
+        (has(tags, '케어드') OR (NOT has(tags, '마켓') AND NOT has(tags, 'market')))
+        AND arrayExists(x -> x LIKE '구매자/%', tags)
+      ) as cared_buyer
+    FROM rawdata_channel_talk.user_chats
+    WHERE toDate(created_at) >= '${startDate}' AND toDate(created_at) <= '${endDate}'
+    FORMAT JSON
+  `
+  
+  try {
+    const response = await fetch(`http://${CLICKHOUSE_HOST}:${CLICKHOUSE_PORT}/`, {
+      method: 'POST',
+      headers: { 'Authorization': `Basic ${auth}`, 'Content-Type': 'text/plain' },
+      body: query,
+    })
+    
+    const data = await response.json()
+    return {
+      caredSeller: Number(data.data?.[0]?.cared_seller || 0),
+      caredBuyer: Number(data.data?.[0]?.cared_buyer || 0),
+    }
+  } catch (e) {
+    console.error('Failed to fetch cared seller/buyer inquiries:', e)
+    return { caredSeller: 0, caredBuyer: 0 }
+  }
+}
+
 // Contact Rate 계산용: 주문수 + 케어드 주문수 + 마켓 주문수 + 백 신청자 수 조회
 // 2026-03-19 재키님 지시: 주문수는 silver.item_orders_unified에서 DISTINCT charan_order_id로 계산
 async function fetchContactRateData(startDate: string, endDate: string): Promise<{ orders: number; caredOrders: number; marketOrders: number; bagRequesters: number }> {
@@ -598,8 +635,10 @@ export async function GET(request: Request) {
     
     // Contact Rate용 주문수/백신청자 수 (주간일 때만 조회)
     let contactRateData = null
+    let caredSellerBuyerData = null
     if (period === 'weekly' && weekStart && weekEnd) {
       contactRateData = await fetchContactRateData(weekStart, weekEnd)
+      caredSellerBuyerData = await fetchCaredSellerBuyerInquiries(weekStart, weekEnd)
     }
 
     // 마켓/케어드 분리
@@ -645,6 +684,7 @@ export async function GET(request: Request) {
       firstResolutionRates: firstResolutionRates,
       dailyResolutionStats: dailyResolutionStats,
       contactRateData: contactRateData,
+      caredSellerBuyerData: caredSellerBuyerData,
       generatedAt: new Date().toISOString(),
     })
   } catch (error) {
