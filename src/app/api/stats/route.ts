@@ -225,14 +225,18 @@ async function fetchDailyResolutionStats(startDate: string, endDate: string): Pr
 }
 
 // Contact Rate 계산용: 주문수 + 백 신청자 수 조회
+// 2026-03-19 재키님 지시: 주문수는 silver.item_orders_unified에서 DISTINCT charan_order_id로 계산
 async function fetchContactRateData(startDate: string, endDate: string): Promise<{ orders: number; bagRequesters: number }> {
   const auth = Buffer.from(`${CLICKHOUSE_USER}:${CLICKHOUSE_PASSWORD}`).toString('base64')
   
-  // 주문수 쿼리
+  // 주문수 쿼리 (silver.item_orders_unified, 주문 기준)
   const ordersQuery = `
-    SELECT count(DISTINCT id) as order_count
-    FROM orders.item_orders 
-    WHERE toDate(order_started_at) >= '${startDate}' AND toDate(order_started_at) <= '${endDate}'
+    SELECT COUNT(DISTINCT charan_order_id) as order_count
+    FROM silver.item_orders_unified 
+    WHERE toDate(created_at) >= '${startDate}' AND toDate(created_at) <= '${endDate}'
+      AND status_id >= 200
+      AND status_id NOT IN (700, 701)
+      AND provider_is_mineis = false
     FORMAT JSON
   `
   
