@@ -155,7 +155,7 @@ interface WeekData {
   total: number;
   market: number;
   cared: number;
-  contactRateData?: { orders: number; caredOrders: number; bagRequesters: number };
+  contactRateData?: { orders: number; caredOrders: number; marketOrders: number; bagRequesters: number };
 }
 
 function RoadmapReview() {
@@ -181,13 +181,13 @@ function RoadmapReview() {
           total: lastData.today?.total || 0,
           market: lastData.today?.byProduct?.market || 0,
           cared: lastData.today?.byProduct?.cared || 0,
-          contactRateData: lastData.contactRateData || { orders: 0, caredOrders: 0, bagRequesters: 0 },
+          contactRateData: lastData.contactRateData || { orders: 0, caredOrders: 0, marketOrders: 0, bagRequesters: 0 },
         });
         setThisWeekData({ 
           total: thisData.today?.total || 0,
           market: thisData.today?.byProduct?.market || 0,
           cared: thisData.today?.byProduct?.cared || 0,
-          contactRateData: thisData.contactRateData || { orders: 0, caredOrders: 0, bagRequesters: 0 },
+          contactRateData: thisData.contactRateData || { orders: 0, caredOrders: 0, marketOrders: 0, bagRequesters: 0 },
         });
       } catch (e) {
         console.error('Failed to fetch roadmap data', e);
@@ -559,6 +559,179 @@ function RoadmapReview() {
                     <div className="ml-4 text-gray-600">
                       <p className="mb-1">◦ 케어드 문의건수 : {thisCared}건</p>
                       <p className="mb-1">◦ <span className="underline">케어드 주문수 : {thisCaredOrders.toLocaleString()}건</span> + <span className="underline">백 신청자 수 : {thisBagRequesters.toLocaleString()}건</span> = <span className="font-semibold">{thisCaredDenominator.toLocaleString()}건</span></p>
+                    </div>
+                  </div>
+                </div>
+              </>
+            );
+          })()}
+        </div>
+        )}
+      </div>
+
+      {/* 마켓 문의량 + Contact Rate 양옆 배치 */}
+      <div className="flex gap-6 mb-6">
+        {/* 마켓 문의량 주간비교 */}
+        <div className="bg-gray-50 rounded-xl p-6 flex-1 flex flex-col">
+          <h3 className="text-lg font-semibold text-gray-700 mb-4">마켓 문의량 주간비교</h3>
+          
+          {loading ? (
+            <div className="flex items-center justify-center flex-1">
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-green-500"></div>
+              <span className="ml-2 text-gray-500">데이터 로딩 중...</span>
+            </div>
+          ) : (
+            (() => {
+              const lastMarket = lastWeekData?.market || 0;
+              const thisMarket = thisWeekData?.market || 0;
+              const marketDiff = thisMarket - lastMarket;
+              const marketDiffPercent = lastMarket > 0 ? ((marketDiff / lastMarket) * 100).toFixed(1) : '0';
+              const isMarketIncrease = marketDiff >= 0;
+              const maxMarketValue = Math.max(lastMarket, thisMarket, 1);
+
+              return (
+                <div className="flex flex-col flex-1 justify-end">
+                  {/* 바 차트 */}
+                  <div className="flex items-end justify-center gap-20 mb-4">
+                    {/* 지난주 바 */}
+                    <div className="flex flex-col items-center">
+                      <span className="text-3xl font-bold text-gray-600 mb-2">{lastMarket}건</span>
+                      <div 
+                        className="w-32 bg-gray-400 rounded-t-lg transition-all duration-500"
+                        style={{ height: `${(lastMarket / maxMarketValue) * 220}px` }}
+                      />
+                      <span className="mt-3 text-lg text-gray-600 font-medium">지난 주</span>
+                      <span className="text-base text-gray-400">({LAST_WEEK.label})</span>
+                    </div>
+                    
+                    {/* 이번주 바 */}
+                    <div className="flex flex-col items-center">
+                      <span className="text-3xl font-bold text-green-600 mb-2">{thisMarket}건</span>
+                      <div 
+                        className="w-32 bg-green-500 rounded-t-lg transition-all duration-500"
+                        style={{ height: `${(thisMarket / maxMarketValue) * 220}px` }}
+                      />
+                      <span className="mt-3 text-lg text-gray-600 font-medium">이번 주</span>
+                      <span className="text-base text-gray-400">({THIS_WEEK.label})</span>
+                    </div>
+                  </div>
+
+                  {/* 증감 표시 */}
+                  <div className="flex justify-center mt-2">
+                    <div className={`px-8 py-3 rounded-full text-white font-bold text-lg ${
+                      isMarketIncrease ? 'bg-green-500' : 'bg-red-500'
+                    }`}>
+                      {isMarketIncrease ? '▲' : '▼'} {isMarketIncrease ? '증가' : '감소'}: {Math.abs(marketDiff)}건 ({isMarketIncrease ? '+' : ''}{marketDiffPercent}%)
+                    </div>
+                  </div>
+                </div>
+              );
+            })()
+          )}
+        </div>
+
+        {/* 마켓 문의 Contact Rate */}
+        {!loading && (
+          <div className="bg-gray-50 rounded-xl p-6 flex-1">
+          <div className="flex justify-between items-start mb-4">
+            <h3 className="text-lg font-semibold text-gray-700">마켓 문의 Contact Rate</h3>
+          </div>
+          
+          {/* Contact Rate 정의 */}
+          <div className="flex justify-end mb-4">
+            <span className="text-xs text-green-600 bg-green-50 px-2 py-1 rounded">
+              마켓 Contact Rate = 마켓 문의건수 ÷ 마켓 주문건수
+            </span>
+          </div>
+          
+          {(() => {
+            // 마켓 Contact Rate 계산 (마켓 문의건수 ÷ 마켓 주문건수)
+            const lastMarket = lastWeekData?.market || 0;
+            const thisMarket = thisWeekData?.market || 0;
+            const lastMarketOrders = lastWeekData?.contactRateData?.marketOrders || 0;
+            const thisMarketOrders = thisWeekData?.contactRateData?.marketOrders || 0;
+            
+            const lastMarketContactRate = lastMarketOrders > 0 ? (lastMarket / lastMarketOrders) * 100 : 0;
+            const thisMarketContactRate = thisMarketOrders > 0 ? (thisMarket / thisMarketOrders) * 100 : 0;
+            const marketContactRateDiff = thisMarketContactRate - lastMarketContactRate;
+            const maxMarketRate = Math.max(lastMarketContactRate, thisMarketContactRate, 15);
+
+            return (
+              <>
+                {/* 라인 차트 */}
+                <div className="relative h-48 mb-6">
+                  {/* Y축 레이블 */}
+                  <div className="absolute left-0 top-0 h-full flex flex-col justify-between text-xs text-gray-400 w-8">
+                    <span>{maxMarketRate.toFixed(0)}%</span>
+                    <span>{(maxMarketRate / 2).toFixed(0)}%</span>
+                    <span>0%</span>
+                  </div>
+                  
+                  {/* 차트 영역 */}
+                  <div className="ml-10 h-full border-l border-b border-gray-300 relative">
+                    {/* 라인 */}
+                    <svg className="absolute inset-0 w-full h-full" preserveAspectRatio="none">
+                      <line 
+                        x1="20%" 
+                        y1={`${100 - (lastMarketContactRate / maxMarketRate) * 100}%`}
+                        x2="80%" 
+                        y2={`${100 - (thisMarketContactRate / maxMarketRate) * 100}%`}
+                        stroke="#22C55E" 
+                        strokeWidth="2" 
+                        strokeDasharray="5,5"
+                      />
+                    </svg>
+                    
+                    {/* 포인트 - 지난주 */}
+                    <div 
+                      className="absolute w-3 h-3 bg-gray-500 rounded-full transform -translate-x-1/2 -translate-y-1/2"
+                      style={{ left: '20%', top: `${100 - (lastMarketContactRate / maxMarketRate) * 100}%` }}
+                    />
+                    <div 
+                      className="absolute text-sm font-semibold text-gray-600 transform -translate-x-1/2 bg-gray-50 px-1 rounded"
+                      style={{ left: '20%', top: `${Math.max(100 - (lastMarketContactRate / maxMarketRate) * 100 - 15, 0)}%` }}
+                    >
+                      {lastMarketContactRate.toFixed(1)}%
+                    </div>
+                    
+                    {/* 포인트 - 이번주 */}
+                    <div 
+                      className="absolute w-3 h-3 bg-green-500 rounded-full transform -translate-x-1/2 -translate-y-1/2"
+                      style={{ left: '80%', top: `${100 - (thisMarketContactRate / maxMarketRate) * 100}%` }}
+                    />
+                    <div 
+                      className="absolute text-sm font-semibold text-green-500 transform -translate-x-1/2 bg-gray-50 px-1 rounded"
+                      style={{ left: '80%', top: `${Math.max(100 - (thisMarketContactRate / maxMarketRate) * 100 - 15, 0)}%` }}
+                    >
+                      {thisMarketContactRate.toFixed(1)}%
+                    </div>
+                  </div>
+                  
+                  {/* X축 레이블 */}
+                  <div className="ml-10 flex justify-between mt-2 text-xs text-gray-500">
+                    <span className="ml-[15%]">지난 주 ({LAST_WEEK.label})</span>
+                    <span className="mr-[15%]">이번 주 ({THIS_WEEK.label})</span>
+                  </div>
+                </div>
+
+                {/* Contact Rate 상세 */}
+                <div className="bg-white rounded-lg p-4 text-sm">
+                  <div className="mb-4">
+                    <p className="font-semibold text-gray-700 mb-2">• 지난 주 마켓 Contact Rate : {lastMarketContactRate.toFixed(1)}%</p>
+                    <div className="ml-4 text-gray-600">
+                      <p className="mb-1">◦ 마켓 문의건수 : {lastMarket}건 ÷ 마켓 주문수 : {lastMarketOrders.toLocaleString()}건</p>
+                    </div>
+                  </div>
+                  
+                  <div>
+                    <p className="font-semibold text-gray-700 mb-2">
+                      • 이번 주 마켓 Contact Rate : {thisMarketContactRate.toFixed(1)}% 
+                      <span className={`ml-2 ${marketContactRateDiff >= 0 ? 'text-red-500' : 'text-green-500'}`}>
+                        ({marketContactRateDiff >= 0 ? '+' : ''}{marketContactRateDiff.toFixed(1)}%P WOW)
+                      </span>
+                    </p>
+                    <div className="ml-4 text-gray-600">
+                      <p className="mb-1">◦ 마켓 문의건수 : {thisMarket}건 ÷ 마켓 주문수 : {thisMarketOrders.toLocaleString()}건</p>
                     </div>
                   </div>
                 </div>

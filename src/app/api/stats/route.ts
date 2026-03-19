@@ -224,9 +224,9 @@ async function fetchDailyResolutionStats(startDate: string, endDate: string): Pr
   })
 }
 
-// Contact Rate 계산용: 주문수 + 케어드 주문수 + 백 신청자 수 조회
+// Contact Rate 계산용: 주문수 + 케어드 주문수 + 마켓 주문수 + 백 신청자 수 조회
 // 2026-03-19 재키님 지시: 주문수는 silver.item_orders_unified에서 DISTINCT charan_order_id로 계산
-async function fetchContactRateData(startDate: string, endDate: string): Promise<{ orders: number; caredOrders: number; bagRequesters: number }> {
+async function fetchContactRateData(startDate: string, endDate: string): Promise<{ orders: number; caredOrders: number; marketOrders: number; bagRequesters: number }> {
   const auth = Buffer.from(`${CLICKHOUSE_USER}:${CLICKHOUSE_PASSWORD}`).toString('base64')
   
   // 전체 주문수 쿼리 (silver.item_orders_unified, 주문 기준)
@@ -252,6 +252,18 @@ async function fetchContactRateData(startDate: string, endDate: string): Promise
     FORMAT JSON
   `
   
+  // 마켓 주문수 쿼리 (registration_type = 'p2p')
+  const marketOrdersQuery = `
+    SELECT COUNT(DISTINCT charan_order_id) as market_order_count
+    FROM silver.item_orders_unified 
+    WHERE toDate(created_at) >= '${startDate}' AND toDate(created_at) <= '${endDate}'
+      AND status_id >= 200
+      AND status_id NOT IN (700, 701)
+      AND provider_is_mineis = false
+      AND registration_type = 'p2p'
+    FORMAT JSON
+  `
+  
   // 백 신청자 수 쿼리
   const bagQuery = `
     SELECT count(DISTINCT charan_user_id) as bag_requesters
@@ -261,7 +273,7 @@ async function fetchContactRateData(startDate: string, endDate: string): Promise
   `
   
   try {
-    const [ordersRes, caredOrdersRes, bagRes] = await Promise.all([
+    const [ordersRes, caredOrdersRes, marketOrdersRes, bagRes] = await Promise.all([
       fetch(`http://${CLICKHOUSE_HOST}:${CLICKHOUSE_PORT}/`, {
         method: 'POST',
         headers: { 'Authorization': `Basic ${auth}`, 'Content-Type': 'text/plain' },
@@ -275,22 +287,29 @@ async function fetchContactRateData(startDate: string, endDate: string): Promise
       fetch(`http://${CLICKHOUSE_HOST}:${CLICKHOUSE_PORT}/`, {
         method: 'POST',
         headers: { 'Authorization': `Basic ${auth}`, 'Content-Type': 'text/plain' },
+        body: marketOrdersQuery,
+      }),
+      fetch(`http://${CLICKHOUSE_HOST}:${CLICKHOUSE_PORT}/`, {
+        method: 'POST',
+        headers: { 'Authorization': `Basic ${auth}`, 'Content-Type': 'text/plain' },
         body: bagQuery,
       }),
     ])
     
     const ordersData = await ordersRes.json()
     const caredOrdersData = await caredOrdersRes.json()
+    const marketOrdersData = await marketOrdersRes.json()
     const bagData = await bagRes.json()
     
     return {
       orders: Number(ordersData.data?.[0]?.order_count || 0),
       caredOrders: Number(caredOrdersData.data?.[0]?.cared_order_count || 0),
+      marketOrders: Number(marketOrdersData.data?.[0]?.market_order_count || 0),
       bagRequesters: Number(bagData.data?.[0]?.bag_requesters || 0),
     }
   } catch (e) {
     console.error('Failed to fetch contact rate data:', e)
-    return { orders: 0, caredOrders: 0, bagRequesters: 0 }
+    return { orders: 0, caredOrders: 0, marketOrders: 0, bagRequesters: 0 }
   }
 }
 
