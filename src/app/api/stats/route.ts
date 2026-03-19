@@ -277,9 +277,10 @@ async function fetchMarketSellerBuyerInquiries(startDate: string, endDate: strin
 }> {
   const auth = Buffer.from(`${CLICKHOUSE_USER}:${CLICKHOUSE_PASSWORD}`).toString('base64')
   
-  // 마켓 조건: P2P, 마켓, 또는 공통/구매자/판매자 접두사가 있는 태그
+  // 마켓 조건: 프론트엔드 classifyProduct와 동일하게
+  // 프론트엔드: tag.includes('P2P') or tag.includes('마켓') 사용
   const marketCondition = `
-    arrayExists(x -> x LIKE 'P2P%' OR x LIKE '마켓%' OR x LIKE '공통/%' OR x LIKE '구매자/%' OR x LIKE '판매자/%', tags)
+    arrayExists(x -> position(x, 'P2P') > 0 OR position(x, '마켓') > 0 OR x LIKE '공통/%' OR x LIKE '구매자/%' OR x LIKE '판매자/%', tags)
   `
   
   const query = `
