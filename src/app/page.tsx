@@ -763,6 +763,7 @@ function RoadmapReview() {
                         </div>
                         <span className="mt-2 text-sm text-gray-500">지난주 ({LAST_WEEK.label})</span>
                         <span className="text-xs text-purple-600 font-medium">AI: {lastAi}건</span>
+                        <span className="text-xs text-gray-500 font-medium">사람: {lastUnclassified - lastAi}건</span>
                       </div>
                       
                       {/* 이번주 - 스택 바 */}
@@ -779,6 +780,7 @@ function RoadmapReview() {
                         </div>
                         <span className="mt-2 text-sm text-gray-500">이번주 ({THIS_WEEK.label})</span>
                         <span className="text-xs text-purple-600 font-medium">AI: {thisAi}건</span>
+                        <span className="text-xs text-gray-500 font-medium">사람: {thisUnclassified - thisAi}건</span>
                       </div>
                     </div>
                     
