@@ -219,40 +219,40 @@ function RoadmapReview() {
           <h3 className="text-lg font-semibold text-gray-700 mb-6">전체(케어드+마켓) 문의량 주간비교</h3>
           
           {loading ? (
-            <div className="flex items-center justify-center h-64">
+            <div className="flex items-center justify-center h-72">
               <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-purple-500"></div>
               <span className="ml-2 text-gray-500">데이터 로딩 중...</span>
             </div>
           ) : (
             <>
               {/* 바 차트 */}
-              <div className="flex items-end justify-center gap-12 h-48 mb-4">
+              <div className="flex items-end justify-center gap-16 h-64 mb-6">
                 {/* 지난주 바 */}
                 <div className="flex flex-col items-center">
-                  <span className="text-lg font-bold text-gray-600 mb-2">{lastTotal}건</span>
+                  <span className="text-2xl font-bold text-gray-600 mb-3">{lastTotal}건</span>
                   <div 
-                    className="w-20 bg-gray-400 rounded-t-lg transition-all duration-500"
-                    style={{ height: `${(lastTotal / maxValue) * 150}px` }}
+                    className="w-28 bg-gray-400 rounded-t-lg transition-all duration-500"
+                    style={{ height: `${(lastTotal / maxValue) * 180}px` }}
                   />
-                  <span className="mt-3 text-sm text-gray-600">지난 주</span>
-                  <span className="text-xs text-gray-400">({LAST_WEEK.label})</span>
+                  <span className="mt-4 text-base text-gray-600 font-medium">지난 주</span>
+                  <span className="text-sm text-gray-400">({LAST_WEEK.label})</span>
                 </div>
                 
                 {/* 이번주 바 */}
                 <div className="flex flex-col items-center">
-                  <span className="text-lg font-bold text-purple-600 mb-2">{thisTotal}건</span>
+                  <span className="text-2xl font-bold text-purple-600 mb-3">{thisTotal}건</span>
                   <div 
-                    className="w-20 bg-purple-500 rounded-t-lg transition-all duration-500"
-                    style={{ height: `${(thisTotal / maxValue) * 150}px` }}
+                    className="w-28 bg-purple-500 rounded-t-lg transition-all duration-500"
+                    style={{ height: `${(thisTotal / maxValue) * 180}px` }}
                   />
-                  <span className="mt-3 text-sm text-gray-600">이번 주</span>
-                  <span className="text-xs text-gray-400">({THIS_WEEK.label})</span>
+                  <span className="mt-4 text-base text-gray-600 font-medium">이번 주</span>
+                  <span className="text-sm text-gray-400">({THIS_WEEK.label})</span>
                 </div>
               </div>
 
               {/* 증감 표시 */}
               <div className="flex justify-center">
-                <div className={`px-4 py-2 rounded-full text-white font-semibold text-sm ${
+                <div className={`px-6 py-3 rounded-full text-white font-semibold text-base ${
                   isIncrease ? 'bg-green-500' : 'bg-red-500'
                 }`}>
                   {isIncrease ? '▲' : '▼'} {isIncrease ? '증가' : '감소'}: {Math.abs(diff)}건 ({isIncrease ? '+' : ''}{diffPercent}%)
