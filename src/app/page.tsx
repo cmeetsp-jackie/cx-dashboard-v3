@@ -156,7 +156,7 @@ interface WeekData {
   market: number;
   cared: number;
   contactRateData?: { orders: number; caredOrders: number; marketOrders: number; bagRequesters: number };
-  caredSellerBuyerData?: { caredSeller: number; caredBuyer: number };
+  caredSellerBuyerData?: { caredSeller: number; caredBuyer: number; caredUnclassified: number };
 }
 
 function RoadmapReview() {
@@ -725,6 +725,45 @@ function RoadmapReview() {
                 );
               })()}
             </div>
+          </div>
+          
+          {/* 미분류 문의량 */}
+          <div className="flex gap-6 mt-4">
+            <div className="bg-gray-100 rounded-xl p-4 flex-1">
+              <h5 className="text-md font-semibold text-gray-600 mb-3">미분류 문의량 주간비교</h5>
+              <p className="text-xs text-gray-400 mb-2">판매자/구매자 태그가 없는 문의</p>
+              {(() => {
+                const lastUnclassified = lastWeekData?.caredSellerBuyerData?.caredUnclassified || 0;
+                const thisUnclassified = thisWeekData?.caredSellerBuyerData?.caredUnclassified || 0;
+                const unclassifiedDiff = thisUnclassified - lastUnclassified;
+                const unclassifiedDiffPercent = lastUnclassified > 0 ? ((unclassifiedDiff / lastUnclassified) * 100).toFixed(1) : '0';
+                const isUnclassifiedIncrease = unclassifiedDiff >= 0;
+                const maxUnclassified = Math.max(lastUnclassified, thisUnclassified, 1);
+                
+                return (
+                  <div className="flex flex-col">
+                    <div className="flex items-end justify-center gap-12 mb-3">
+                      <div className="flex flex-col items-center">
+                        <span className="text-xl font-bold text-gray-500 mb-1">{lastUnclassified}건</span>
+                        <div className="w-20 bg-gray-400 rounded-t-lg" style={{ height: `${(lastUnclassified / maxUnclassified) * 80}px` }} />
+                        <span className="mt-2 text-sm text-gray-500">지난주 ({LAST_WEEK.label})</span>
+                      </div>
+                      <div className="flex flex-col items-center">
+                        <span className="text-xl font-bold text-gray-600 mb-1">{thisUnclassified}건</span>
+                        <div className="w-20 bg-gray-500 rounded-t-lg" style={{ height: `${(thisUnclassified / maxUnclassified) * 80}px` }} />
+                        <span className="mt-2 text-sm text-gray-500">이번주 ({THIS_WEEK.label})</span>
+                      </div>
+                    </div>
+                    <div className="flex justify-center">
+                      <span className={`px-4 py-1 rounded-full text-white text-sm font-medium ${isUnclassifiedIncrease ? 'bg-green-500' : 'bg-red-500'}`}>
+                        {isUnclassifiedIncrease ? '▲' : '▼'} {Math.abs(unclassifiedDiff)}건 ({isUnclassifiedIncrease ? '+' : ''}{unclassifiedDiffPercent}%)
+                      </span>
+                    </div>
+                  </div>
+                );
+              })()}
+            </div>
+            <div className="flex-1"></div>
           </div>
         </div>
       )}

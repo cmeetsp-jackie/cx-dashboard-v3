@@ -224,8 +224,8 @@ async function fetchDailyResolutionStats(startDate: string, endDate: string): Pr
   })
 }
 
-// 케어드 판매자/구매자 문의 건수 조회 (태그 기반)
-async function fetchCaredSellerBuyerInquiries(startDate: string, endDate: string): Promise<{ caredSeller: number; caredBuyer: number }> {
+// 케어드 판매자/구매자/미분류 문의 건수 조회 (태그 기반)
+async function fetchCaredSellerBuyerInquiries(startDate: string, endDate: string): Promise<{ caredSeller: number; caredBuyer: number; caredUnclassified: number }> {
   const auth = Buffer.from(`${CLICKHOUSE_USER}:${CLICKHOUSE_PASSWORD}`).toString('base64')
   
   const query = `
@@ -237,7 +237,12 @@ async function fetchCaredSellerBuyerInquiries(startDate: string, endDate: string
       countIf(
         (has(tags, '케어드') OR (NOT has(tags, '마켓') AND NOT has(tags, 'market')))
         AND arrayExists(x -> x LIKE '구매자/%', tags)
-      ) as cared_buyer
+      ) as cared_buyer,
+      countIf(
+        (has(tags, '케어드') OR (NOT has(tags, '마켓') AND NOT has(tags, 'market')))
+        AND NOT arrayExists(x -> x LIKE '판매자/%', tags)
+        AND NOT arrayExists(x -> x LIKE '구매자/%', tags)
+      ) as cared_unclassified
     FROM rawdata_channel_talk.user_chats
     WHERE toDate(created_at) >= '${startDate}' AND toDate(created_at) <= '${endDate}'
     FORMAT JSON
@@ -254,10 +259,11 @@ async function fetchCaredSellerBuyerInquiries(startDate: string, endDate: string
     return {
       caredSeller: Number(data.data?.[0]?.cared_seller || 0),
       caredBuyer: Number(data.data?.[0]?.cared_buyer || 0),
+      caredUnclassified: Number(data.data?.[0]?.cared_unclassified || 0),
     }
   } catch (e) {
     console.error('Failed to fetch cared seller/buyer inquiries:', e)
-    return { caredSeller: 0, caredBuyer: 0 }
+    return { caredSeller: 0, caredBuyer: 0, caredUnclassified: 0 }
   }
 }
 
