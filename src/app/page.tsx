@@ -2090,6 +2090,14 @@ export default function Dashboard() {
                       })}
                     </div>
                     <p className="text-center text-white/50 text-[10px] mt-2">* 해결률(%) / 평균해결시간(분)</p>
+                    <div className="mt-3 pt-3 border-t border-white/20">
+                      <p className="text-center text-white/60 text-[10px]">
+                        <span className="font-semibold">해결률</span> = 종결된 문의 ÷ 전체 문의 × 100
+                      </p>
+                      <p className="text-center text-white/60 text-[10px] mt-1">
+                        <span className="font-semibold">해결시간</span> = 문의 생성 → 종결까지 평균 소요 시간
+                      </p>
+                    </div>
                   </>
                 );
               })()}
