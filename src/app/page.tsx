@@ -164,8 +164,8 @@ function RoadmapReview() {
   const [loading, setLoading] = useState(true);
 
   // 지난주 = Week 1 (3/4~3/10), 이번주 = Week 2 (3/11~3/17)
-  const LAST_WEEK = { start: '2026-03-04', end: '2026-03-10', label: '3/4~3/10' };
-  const THIS_WEEK = { start: '2026-03-11', end: '2026-03-17', label: '3/11~3/17' };
+  const LAST_WEEK = { start: '2026-03-05', end: '2026-03-11', label: '3/5~3/11' };
+  const THIS_WEEK = { start: '2026-03-12', end: '2026-03-18', label: '3/12~3/18' };
 
   useEffect(() => {
     const fetchData = async () => {
