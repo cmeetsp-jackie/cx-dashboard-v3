@@ -370,14 +370,22 @@ function RoadmapReview() {
               </div>
               
               {/* 변화량 */}
-              <div className="ml-4">
+              <div className="ml-4 flex flex-col gap-2">
                 {(() => {
-                  const diff = (thisWeekData?.resolutionRate || 0) - (lastWeekData?.resolutionRate || 0);
-                  const isUp = diff >= 0;
+                  const rateDiff = (thisWeekData?.resolutionRate || 0) - (lastWeekData?.resolutionRate || 0);
+                  const isRateUp = rateDiff >= 0;
+                  const timeDiff = (thisWeekData?.avgResolutionTimeMin || 0) - (lastWeekData?.avgResolutionTimeMin || 0);
+                  const week1Time = lastWeekData?.avgResolutionTimeMin || 0;
+                  const timeDiffPct = week1Time > 0 ? Math.round((timeDiff / week1Time) * 100) : 0;
                   return (
-                    <div className={`px-4 py-2 rounded-lg ${isUp ? 'bg-green-500/20 text-green-400' : 'bg-red-500/20 text-red-400'}`}>
-                      <span className="text-lg font-bold">{isUp ? '▲' : '▼'} {Math.abs(diff).toFixed(1)}%p</span>
-                    </div>
+                    <>
+                      <div className={`px-4 py-2 rounded-lg ${isRateUp ? 'bg-green-500/20 text-green-400' : 'bg-red-500/20 text-red-400'}`}>
+                        <span className="text-sm font-bold">{isRateUp ? '▲' : '▼'} 해결률 {Math.abs(rateDiff).toFixed(1)}%p</span>
+                      </div>
+                      <div className={`px-4 py-2 rounded-lg ${timeDiff < 0 ? 'bg-green-500/20 text-green-400' : timeDiff > 0 ? 'bg-red-500/20 text-red-400' : 'bg-gray-500/20 text-gray-400'}`}>
+                        <span className="text-sm font-bold">{timeDiff < 0 ? '▼' : timeDiff > 0 ? '▲' : '−'} 해결시간 {Math.abs(timeDiff)}분 ({timeDiff <= 0 ? '' : '+'}{timeDiffPct}%)</span>
+                      </div>
+                    </>
                   );
                 })()}
               </div>
