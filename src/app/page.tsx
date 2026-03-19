@@ -576,10 +576,20 @@ export default function Dashboard() {
                   );
                 })()
               ) : (
-                // Weekly: 일별 차트
+                // Weekly: 일별 차트 - selectedWeek에 따라 날짜 동적 생성
                 (() => {
-                  const dates = ['2026-03-04', '2026-03-05', '2026-03-06', '2026-03-07', '2026-03-08', '2026-03-09', '2026-03-10'];
-                  const dateLabels = ['3/4', '3/5', '3/6', '3/7', '3/8', '3/9', '3/10'];
+                  // selectedWeek.start ~ selectedWeek.end 기간의 날짜들 생성
+                  const startDate = new Date(selectedWeek.start);
+                  const endDate = new Date(selectedWeek.end);
+                  const dates: string[] = [];
+                  const dateLabels: string[] = [];
+                  const current = new Date(startDate);
+                  while (current <= endDate) {
+                    const dateStr = current.toISOString().split('T')[0];
+                    dates.push(dateStr);
+                    dateLabels.push(`${current.getMonth() + 1}/${current.getDate()}`);
+                    current.setDate(current.getDate() + 1);
+                  }
                   const values = dates.map(d => stats?.today.byDate?.[d] || 0);
                   const max = values.length > 0 ? Math.max(...values) : 1;
                   const mid = Math.round(max / 2);
