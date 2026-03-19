@@ -286,52 +286,58 @@ function RoadmapReview() {
         {!loading && (
           <div className="flex items-center gap-6">
             {/* 1차 해결률 */}
-            <div className="flex items-center gap-3">
-              <span className="text-sm font-semibold text-gray-600">🎯 1차 해결률</span>
-              <div className="flex gap-2">
-                {/* Week 1 */}
-                <div className="flex flex-col items-center">
-                  <div className="w-14 h-14 rounded-full bg-gradient-to-br from-cyan-500 to-blue-600 border-3 border-cyan-300 flex flex-col items-center justify-center text-white shadow-lg">
-                    <span className="text-sm font-bold">{lastWeekData?.firstResolutionRate || 0}%</span>
-                    <span className="text-[9px]">{lastWeekData?.firstResolutionAssigned || 0}건</span>
+            <div className="flex flex-col items-end gap-1">
+              <div className="flex items-center gap-3">
+                <span className="text-sm font-semibold text-gray-600">🎯 1차 해결률</span>
+                <div className="flex gap-2">
+                  {/* Week 1 */}
+                  <div className="flex flex-col items-center">
+                    <div className="w-14 h-14 rounded-full bg-gradient-to-br from-cyan-500 to-blue-600 border-3 border-cyan-300 flex flex-col items-center justify-center text-white shadow-lg">
+                      <span className="text-sm font-bold">{lastWeekData?.firstResolutionRate || 0}%</span>
+                      <span className="text-[9px]">{lastWeekData?.firstResolutionAssigned || 0}건</span>
+                    </div>
+                    <span className="text-[10px] text-gray-500 mt-1">W1</span>
                   </div>
-                  <span className="text-[10px] text-gray-500 mt-1">W1</span>
-                </div>
-                {/* Week 2 */}
-                <div className="flex flex-col items-center">
-                  <div className="w-14 h-14 rounded-full bg-gradient-to-br from-emerald-500 to-teal-600 border-3 border-emerald-300 flex flex-col items-center justify-center text-white shadow-lg">
-                    <span className="text-sm font-bold">{thisWeekData?.firstResolutionRate || 0}%</span>
-                    <span className="text-[9px]">{thisWeekData?.firstResolutionAssigned || 0}건</span>
+                  {/* Week 2 */}
+                  <div className="flex flex-col items-center">
+                    <div className="w-14 h-14 rounded-full bg-gradient-to-br from-emerald-500 to-teal-600 border-3 border-emerald-300 flex flex-col items-center justify-center text-white shadow-lg">
+                      <span className="text-sm font-bold">{thisWeekData?.firstResolutionRate || 0}%</span>
+                      <span className="text-[9px]">{thisWeekData?.firstResolutionAssigned || 0}건</span>
+                    </div>
+                    <span className="text-[10px] text-gray-500 mt-1">W2</span>
                   </div>
-                  <span className="text-[10px] text-gray-500 mt-1">W2</span>
                 </div>
               </div>
+              <span className="text-[9px] text-gray-400">당일 19시 전 해결 비율 (담당자 배정 건 기준)</span>
             </div>
             
             {/* 구분선 */}
-            <div className="h-12 w-px bg-gray-300"></div>
+            <div className="h-16 w-px bg-gray-300"></div>
             
             {/* 해결률 & 해결시간 */}
-            <div className="flex items-center gap-3">
-              <span className="text-sm font-semibold text-gray-600">📅 해결률</span>
-              <div className="flex gap-2">
-                {/* Week 1 */}
-                <div className="flex flex-col items-center">
-                  <div className="w-14 h-14 rounded-full bg-gradient-to-br from-indigo-500 to-purple-600 border-3 border-indigo-300 flex flex-col items-center justify-center text-white shadow-lg">
-                    <span className="text-sm font-bold">{lastWeekData?.resolutionRate || 0}%</span>
-                    <span className="text-[9px]">{lastWeekData?.avgResolutionTimeMin || 0}분</span>
+            <div className="flex flex-col items-end gap-1">
+              <div className="flex items-center gap-3">
+                <span className="text-sm font-semibold text-gray-600">📅 해결률 & 해결시간</span>
+                <div className="flex gap-2">
+                  {/* Week 1 */}
+                  <div className="flex flex-col items-center">
+                    <div className="w-14 h-14 rounded-full bg-gradient-to-br from-indigo-500 to-purple-600 border-3 border-indigo-300 flex flex-col items-center justify-center text-white shadow-lg">
+                      <span className="text-sm font-bold">{lastWeekData?.resolutionRate || 0}%</span>
+                      <span className="text-[9px]">{lastWeekData?.avgResolutionTimeMin || 0}분</span>
+                    </div>
+                    <span className="text-[10px] text-gray-500 mt-1">W1</span>
                   </div>
-                  <span className="text-[10px] text-gray-500 mt-1">W1</span>
-                </div>
-                {/* Week 2 */}
-                <div className="flex flex-col items-center">
-                  <div className="w-14 h-14 rounded-full bg-gradient-to-br from-rose-500 to-pink-600 border-3 border-rose-300 flex flex-col items-center justify-center text-white shadow-lg">
-                    <span className="text-sm font-bold">{thisWeekData?.resolutionRate || 0}%</span>
-                    <span className="text-[9px]">{thisWeekData?.avgResolutionTimeMin || 0}분</span>
+                  {/* Week 2 */}
+                  <div className="flex flex-col items-center">
+                    <div className="w-14 h-14 rounded-full bg-gradient-to-br from-rose-500 to-pink-600 border-3 border-rose-300 flex flex-col items-center justify-center text-white shadow-lg">
+                      <span className="text-sm font-bold">{thisWeekData?.resolutionRate || 0}%</span>
+                      <span className="text-[9px]">{thisWeekData?.avgResolutionTimeMin || 0}분</span>
+                    </div>
+                    <span className="text-[10px] text-gray-500 mt-1">W2</span>
                   </div>
-                  <span className="text-[10px] text-gray-500 mt-1">W2</span>
                 </div>
               </div>
+              <span className="text-[9px] text-gray-400">종결 문의 ÷ 전체 문의 / 평균 해결 소요 시간</span>
             </div>
           </div>
         )}
