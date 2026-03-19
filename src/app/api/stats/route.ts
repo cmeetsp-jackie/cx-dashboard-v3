@@ -472,11 +472,27 @@ export async function GET(request: Request) {
     const todayStats = calculateStats(todayChats)
     const yesterdayStats = calculateStats(yesterdayChats)
 
-    // 1차 해결률 계산 (3/11 ~ 3/17 고정)
-    const firstResolutionRates = await fetchFirstResolutionRate('2026-03-11', '2026-03-17')
+    // 1차 해결률 및 일별 해결률 - 요청된 기간에 맞춰 동적으로 조회
+    let statsStartDate: string
+    let statsEndDate: string
     
-    // 일별 해결률 & 해결시간 (3/11 ~ 3/17)
-    const dailyResolutionStats = await fetchDailyResolutionStats('2026-03-11', '2026-03-17')
+    if (period === 'weekly' && weekStart && weekEnd) {
+      statsStartDate = weekStart
+      statsEndDate = weekEnd
+    } else if (period === 'pastDaily') {
+      const date = searchParams.get('date')
+      statsStartDate = date || new Date().toISOString().split('T')[0]
+      statsEndDate = statsStartDate
+    } else {
+      // daily: 오늘 날짜 (KST)
+      const now = new Date()
+      const kstNowLocal = new Date(now.getTime() + 9 * 60 * 60 * 1000)
+      statsStartDate = kstNowLocal.toISOString().split('T')[0]
+      statsEndDate = statsStartDate
+    }
+    
+    const firstResolutionRates = await fetchFirstResolutionRate(statsStartDate, statsEndDate)
+    const dailyResolutionStats = await fetchDailyResolutionStats(statsStartDate, statsEndDate)
 
     // 마켓/케어드 분리
     const todayMarket = todayChats.filter(c => classifyProduct(c) === 'market')

@@ -66,6 +66,9 @@ function formatDateLabel(dateStr: string): string {
   return `${year}.${month}.${day}`;
 }
 
+// 서비스 시작일 (Week 1 시작) - 유일한 기준점
+const SERVICE_START_DATE = '2026-03-04';  // 화요일
+
 // 주간 시작일 계산 (화요일 기준)
 function getWeekStart(date: Date): Date {
   const d = new Date(date);
@@ -76,18 +79,48 @@ function getWeekStart(date: Date): Date {
   return d;
 }
 
-// 완료된 주간 목록 생성
+// 완료된 주간 목록 생성 (동적 계산)
 function getCompletedWeeks(): { id: string; label: string; start: string; end: string }[] {
   const kstNow = getKSTDate();
-  const todayStr = formatDate(kstNow);
+  const today = formatDate(kstNow);
   const weeks = [];
   
-  // Week 1: 3/4 ~ 3/10 (고정)
-  weeks.push({ id: 'week1', label: 'Week 1 (3/4~3/10)', start: '2026-03-04', end: '2026-03-10' });
+  // 서비스 시작일부터 7일씩 주간 생성
+  const serviceStart = new Date(SERVICE_START_DATE);
+  let weekNum = 1;
+  let weekStart = new Date(serviceStart);
   
-  // Week 2: 3/11 ~ 3/17 (3/18 이후면 추가)
-  if (todayStr >= '2026-03-18') {
-    weeks.push({ id: 'week2', label: 'Week 2 (3/11~3/17)', start: '2026-03-11', end: '2026-03-17' });
+  while (true) {
+    const weekEnd = new Date(weekStart);
+    weekEnd.setUTCDate(weekEnd.getUTCDate() + 6);  // 월요일까지 (7일간)
+    
+    const weekStartStr = formatDate(weekStart);
+    const weekEndStr = formatDate(weekEnd);
+    
+    // 해당 주간이 완료되었는지 확인 (오늘이 다음 주 화요일 이후)
+    const nextWeekStart = new Date(weekEnd);
+    nextWeekStart.setUTCDate(nextWeekStart.getUTCDate() + 1);
+    
+    if (today >= formatDate(nextWeekStart)) {
+      // 완료된 주간
+      const startMonth = weekStart.getUTCMonth() + 1;
+      const startDay = weekStart.getUTCDate();
+      const endMonth = weekEnd.getUTCMonth() + 1;
+      const endDay = weekEnd.getUTCDate();
+      
+      weeks.push({
+        id: `week${weekNum}`,
+        label: `Week ${weekNum} (${startMonth}/${startDay}~${endMonth}/${endDay})`,
+        start: weekStartStr,
+        end: weekEndStr
+      });
+      
+      weekNum++;
+      weekStart = new Date(nextWeekStart);
+    } else {
+      // 현재 진행 중인 주간이면 중단
+      break;
+    }
   }
   
   return weeks;
@@ -99,11 +132,13 @@ function getPastDailyTabs(): { date: string; label: string }[] {
   const today = formatDate(kstNow);
   const tabs = [];
   
-  // 마지막 완료 주간 다음날부터 시작
-  // Week 2가 3/17까지 완료되었으므로 3/18부터 시작
-  const lastCompletedWeekEnd = '2026-03-17';
-  const startDate = new Date(lastCompletedWeekEnd);
-  startDate.setUTCDate(startDate.getUTCDate() + 1);  // 3/18
+  // 완료된 주간들 가져와서 마지막 주간의 종료일 찾기
+  const completedWeeks = getCompletedWeeks();
+  if (completedWeeks.length === 0) return tabs;
+  
+  const lastWeek = completedWeeks[completedWeeks.length - 1];
+  const startDate = new Date(lastWeek.end);
+  startDate.setUTCDate(startDate.getUTCDate() + 1);  // 마지막 완료 주간 다음날
   
   const current = new Date(startDate);
   while (formatDate(current) < today) {
