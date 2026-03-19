@@ -267,8 +267,8 @@ async function fetchMarketSellerBuyerInquiries(startDate: string, endDate: strin
   }
 }
 
-// 케어드 판매자/구매자/미분류 문의 건수 조회 (태그 기반)
-async function fetchCaredSellerBuyerInquiries(startDate: string, endDate: string): Promise<{ caredSeller: number; caredBuyer: number; caredUnclassified: number }> {
+// 케어드 판매자/구매자/미분류/AI응답 문의 건수 조회 (태그 기반)
+async function fetchCaredSellerBuyerInquiries(startDate: string, endDate: string): Promise<{ caredSeller: number; caredBuyer: number; caredUnclassified: number; caredAiResponse: number }> {
   const auth = Buffer.from(`${CLICKHOUSE_USER}:${CLICKHOUSE_PASSWORD}`).toString('base64')
   
   const query = `
@@ -285,7 +285,12 @@ async function fetchCaredSellerBuyerInquiries(startDate: string, endDate: string
         (has(tags, '케어드') OR (NOT has(tags, '마켓') AND NOT has(tags, 'market')))
         AND NOT arrayExists(x -> x LIKE '판매자/%', tags)
         AND NOT arrayExists(x -> x LIKE '구매자/%', tags)
-      ) as cared_unclassified
+      ) as cared_unclassified,
+      countIf(
+        (has(tags, '케어드') OR (NOT has(tags, '마켓') AND NOT has(tags, 'market')))
+        AND state = 'closed'
+        AND assignee_id IS NULL
+      ) as cared_ai_response
     FROM rawdata_channel_talk.user_chats
     WHERE toDate(created_at) >= '${startDate}' AND toDate(created_at) <= '${endDate}'
     FORMAT JSON
@@ -303,10 +308,11 @@ async function fetchCaredSellerBuyerInquiries(startDate: string, endDate: string
       caredSeller: Number(data.data?.[0]?.cared_seller || 0),
       caredBuyer: Number(data.data?.[0]?.cared_buyer || 0),
       caredUnclassified: Number(data.data?.[0]?.cared_unclassified || 0),
+      caredAiResponse: Number(data.data?.[0]?.cared_ai_response || 0),
     }
   } catch (e) {
     console.error('Failed to fetch cared seller/buyer inquiries:', e)
-    return { caredSeller: 0, caredBuyer: 0, caredUnclassified: 0 }
+    return { caredSeller: 0, caredBuyer: 0, caredUnclassified: 0, caredAiResponse: 0 }
   }
 }
 
