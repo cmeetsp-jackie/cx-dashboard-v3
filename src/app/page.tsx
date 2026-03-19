@@ -79,14 +79,14 @@ function getWeekStart(date: Date): Date {
 // 완료된 주간 목록 생성
 function getCompletedWeeks(): { id: string; label: string; start: string; end: string }[] {
   const kstNow = getKSTDate();
-  const currentWeekStart = getWeekStart(kstNow);
+  const todayStr = formatDate(kstNow);
   const weeks = [];
   
   // Week 1: 3/4 ~ 3/10 (고정)
   weeks.push({ id: 'week1', label: 'Week 1 (3/4~3/10)', start: '2026-03-04', end: '2026-03-10' });
   
-  // Week 2: 3/11 ~ 3/17 (현재 주가 3/18 이후면 추가)
-  if (currentWeekStart >= new Date('2026-03-18')) {
+  // Week 2: 3/11 ~ 3/17 (3/18 이후면 추가)
+  if (todayStr >= '2026-03-18') {
     weeks.push({ id: 'week2', label: 'Week 2 (3/11~3/17)', start: '2026-03-11', end: '2026-03-17' });
   }
   
