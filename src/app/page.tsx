@@ -2379,6 +2379,12 @@ export default function Dashboard() {
                   weeklyResolution.push({ label: week.label, range: week.range, rate, time: avgTime, total: totalCount, closed: closedCount });
                 });
                 
+                // WoW 해결시간 변화 계산
+                const week1Time = weeklyResolution[0]?.time || 0;
+                const week2Time = weeklyResolution[1]?.time || 0;
+                const timeDiff = week2Time - week1Time; // 음수면 줄어든 것
+                const timeDiffPct = week1Time > 0 ? Math.round((timeDiff / week1Time) * 100) : 0;
+                
                 return (
                   <>
                     <h3 className="text-white font-bold mb-3 text-center text-lg">📅 해결률 & 해결시간 (주단위)</h3>
@@ -2408,6 +2414,14 @@ export default function Dashboard() {
                         );
                       })}
                     </div>
+                    {/* WoW 해결시간 변화 표시 */}
+                    {week1Time > 0 && week2Time > 0 && (
+                      <div className={`mt-3 px-4 py-2 rounded-lg ${timeDiff < 0 ? 'bg-green-500/20' : timeDiff > 0 ? 'bg-red-500/20' : 'bg-gray-500/20'}`}>
+                        <p className={`text-center text-sm font-bold ${timeDiff < 0 ? 'text-green-400' : timeDiff > 0 ? 'text-red-400' : 'text-gray-400'}`}>
+                          {timeDiff < 0 ? '▼' : timeDiff > 0 ? '▲' : '−'} 해결시간 WoW: {Math.abs(timeDiff)}분 ({timeDiff <= 0 ? '' : '+'}{timeDiffPct}%)
+                        </p>
+                      </div>
+                    )}
                     <p className="text-center text-white/50 text-[10px] mt-3">* 해결률(%) / 평균해결시간(분)</p>
                     <div className="mt-3 pt-3 border-t border-white/20">
                       <p className="text-center text-white/60 text-[10px]">
