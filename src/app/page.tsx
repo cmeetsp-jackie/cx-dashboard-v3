@@ -158,6 +158,11 @@ interface WeekData {
   contactRateData?: { orders: number; caredOrders: number; marketOrders: number; bagRequesters: number };
   caredSellerBuyerData?: { caredSeller: number; caredBuyer: number; caredCommon: number; caredUnclassified: number; caredAiResponse: number };
   marketSellerBuyerData?: { marketSeller: number; marketBuyer: number; marketCommon: number; marketUnclassified: number };
+  // 1차 해결률 및 해결률/해결시간 데이터
+  firstResolutionRate?: number;
+  firstResolutionAssigned?: number;
+  resolutionRate?: number;
+  avgResolutionTimeMin?: number;
 }
 
 function RoadmapReview() {
@@ -182,6 +187,52 @@ function RoadmapReview() {
         ]);
         const lastData = await lastRes.json();
         const thisData = await thisRes.json();
+        // Week 1 1차 해결률 및 해결률/해결시간 집계
+        let lastFirstResRate = 0, lastFirstResAssigned = 0;
+        let lastResRate = 0, lastResTime = 0, lastTotal2 = 0, lastClosed = 0;
+        if (lastData.firstResolutionRates) {
+          lastData.firstResolutionRates.forEach((item: any) => {
+            if (item.date >= LAST_WEEK.start && item.date <= LAST_WEEK.end) {
+              lastFirstResAssigned += item.assigned;
+              lastFirstResRate += Math.round(item.assigned * item.rate / 100);
+            }
+          });
+        }
+        if (lastData.dailyResolutionStats) {
+          lastData.dailyResolutionStats.forEach((item: any) => {
+            if (item.date >= LAST_WEEK.start && item.date <= LAST_WEEK.end) {
+              lastTotal2 += item.total;
+              lastClosed += item.closed;
+              if (item.avgResolutionTimeMin > 0) {
+                lastResTime += item.avgResolutionTimeMin * item.closed;
+              }
+            }
+          });
+        }
+        
+        // Week 2 1차 해결률 및 해결률/해결시간 집계
+        let thisFirstResRate = 0, thisFirstResAssigned = 0;
+        let thisResRate = 0, thisResTime = 0, thisTotal2 = 0, thisClosed = 0;
+        if (thisData.firstResolutionRates) {
+          thisData.firstResolutionRates.forEach((item: any) => {
+            if (item.date >= THIS_WEEK.start && item.date <= THIS_WEEK.end) {
+              thisFirstResAssigned += item.assigned;
+              thisFirstResRate += Math.round(item.assigned * item.rate / 100);
+            }
+          });
+        }
+        if (thisData.dailyResolutionStats) {
+          thisData.dailyResolutionStats.forEach((item: any) => {
+            if (item.date >= THIS_WEEK.start && item.date <= THIS_WEEK.end) {
+              thisTotal2 += item.total;
+              thisClosed += item.closed;
+              if (item.avgResolutionTimeMin > 0) {
+                thisResTime += item.avgResolutionTimeMin * item.closed;
+              }
+            }
+          });
+        }
+        
         setLastWeekData({ 
           total: lastData.today?.total || 0,
           market: lastData.today?.byProduct?.market || 0,
@@ -189,6 +240,10 @@ function RoadmapReview() {
           contactRateData: lastData.contactRateData || { orders: 0, caredOrders: 0, marketOrders: 0, bagRequesters: 0 },
           caredSellerBuyerData: lastData.caredSellerBuyerData || { caredSeller: 0, caredBuyer: 0, caredCommon: 0, caredUnclassified: 0, caredAiResponse: 0 },
           marketSellerBuyerData: lastData.marketSellerBuyerData || { marketSeller: 0, marketBuyer: 0, marketCommon: 0, marketUnclassified: 0 },
+          firstResolutionRate: lastFirstResAssigned > 0 ? Math.round((lastFirstResRate / lastFirstResAssigned) * 1000) / 10 : 0,
+          firstResolutionAssigned: lastFirstResAssigned,
+          resolutionRate: lastTotal2 > 0 ? Math.round((lastClosed / lastTotal2) * 1000) / 10 : 0,
+          avgResolutionTimeMin: lastClosed > 0 ? Math.round(lastResTime / lastClosed) : 0,
         });
         setThisWeekData({ 
           total: thisData.today?.total || 0,
@@ -197,6 +252,10 @@ function RoadmapReview() {
           contactRateData: thisData.contactRateData || { orders: 0, caredOrders: 0, marketOrders: 0, bagRequesters: 0 },
           caredSellerBuyerData: thisData.caredSellerBuyerData || { caredSeller: 0, caredBuyer: 0, caredCommon: 0, caredUnclassified: 0, caredAiResponse: 0 },
           marketSellerBuyerData: thisData.marketSellerBuyerData || { marketSeller: 0, marketBuyer: 0, marketCommon: 0, marketUnclassified: 0 },
+          firstResolutionRate: thisFirstResAssigned > 0 ? Math.round((thisFirstResRate / thisFirstResAssigned) * 1000) / 10 : 0,
+          firstResolutionAssigned: thisFirstResAssigned,
+          resolutionRate: thisTotal2 > 0 ? Math.round((thisClosed / thisTotal2) * 1000) / 10 : 0,
+          avgResolutionTimeMin: thisClosed > 0 ? Math.round(thisResTime / thisClosed) : 0,
         });
       } catch (e) {
         console.error('Failed to fetch roadmap data', e);
@@ -216,10 +275,67 @@ function RoadmapReview() {
 
   return (
     <div className="bg-white rounded-2xl p-8 shadow-xl min-h-[600px]">
-      <h2 className="text-2xl font-bold text-gray-800 mb-6 flex items-center gap-3">
-        🗺️ 로드맵 리뷰
-        <span className="text-sm font-normal text-gray-500">지난주 vs 이번주 비교</span>
-      </h2>
+      {/* 제목 + 주단위 트래커 */}
+      <div className="flex items-center justify-between mb-6">
+        <h2 className="text-2xl font-bold text-gray-800 flex items-center gap-3">
+          🗺️ 로드맵 리뷰
+          <span className="text-sm font-normal text-gray-500">지난주 vs 이번주 비교</span>
+        </h2>
+        
+        {/* 1차 해결률 + 해결률&해결시간 트래커 */}
+        {!loading && (
+          <div className="flex items-center gap-6">
+            {/* 1차 해결률 */}
+            <div className="flex items-center gap-3">
+              <span className="text-sm font-semibold text-gray-600">🎯 1차 해결률</span>
+              <div className="flex gap-2">
+                {/* Week 1 */}
+                <div className="flex flex-col items-center">
+                  <div className="w-14 h-14 rounded-full bg-gradient-to-br from-cyan-500 to-blue-600 border-3 border-cyan-300 flex flex-col items-center justify-center text-white shadow-lg">
+                    <span className="text-sm font-bold">{lastWeekData?.firstResolutionRate || 0}%</span>
+                    <span className="text-[9px]">{lastWeekData?.firstResolutionAssigned || 0}건</span>
+                  </div>
+                  <span className="text-[10px] text-gray-500 mt-1">W1</span>
+                </div>
+                {/* Week 2 */}
+                <div className="flex flex-col items-center">
+                  <div className="w-14 h-14 rounded-full bg-gradient-to-br from-emerald-500 to-teal-600 border-3 border-emerald-300 flex flex-col items-center justify-center text-white shadow-lg">
+                    <span className="text-sm font-bold">{thisWeekData?.firstResolutionRate || 0}%</span>
+                    <span className="text-[9px]">{thisWeekData?.firstResolutionAssigned || 0}건</span>
+                  </div>
+                  <span className="text-[10px] text-gray-500 mt-1">W2</span>
+                </div>
+              </div>
+            </div>
+            
+            {/* 구분선 */}
+            <div className="h-12 w-px bg-gray-300"></div>
+            
+            {/* 해결률 & 해결시간 */}
+            <div className="flex items-center gap-3">
+              <span className="text-sm font-semibold text-gray-600">📅 해결률</span>
+              <div className="flex gap-2">
+                {/* Week 1 */}
+                <div className="flex flex-col items-center">
+                  <div className="w-14 h-14 rounded-full bg-gradient-to-br from-indigo-500 to-purple-600 border-3 border-indigo-300 flex flex-col items-center justify-center text-white shadow-lg">
+                    <span className="text-sm font-bold">{lastWeekData?.resolutionRate || 0}%</span>
+                    <span className="text-[9px]">{lastWeekData?.avgResolutionTimeMin || 0}분</span>
+                  </div>
+                  <span className="text-[10px] text-gray-500 mt-1">W1</span>
+                </div>
+                {/* Week 2 */}
+                <div className="flex flex-col items-center">
+                  <div className="w-14 h-14 rounded-full bg-gradient-to-br from-rose-500 to-pink-600 border-3 border-rose-300 flex flex-col items-center justify-center text-white shadow-lg">
+                    <span className="text-sm font-bold">{thisWeekData?.resolutionRate || 0}%</span>
+                    <span className="text-[9px]">{thisWeekData?.avgResolutionTimeMin || 0}분</span>
+                  </div>
+                  <span className="text-[10px] text-gray-500 mt-1">W2</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
 
       {/* 전체 문의량 + Contact Rate 양옆 배치 */}
       <div className="flex gap-6 mb-6">
