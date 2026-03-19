@@ -151,14 +151,26 @@ function getPastDailyTabs(): { date: string; label: string }[] {
 }
 
 // 로드맵리뷰 컴포넌트 - 지난주 vs 이번주 비교
+interface WeekData {
+  total: number;
+  market: number;
+  cared: number;
+}
+
 function RoadmapReview() {
-  const [lastWeekData, setLastWeekData] = useState<{ total: number } | null>(null);
-  const [thisWeekData, setThisWeekData] = useState<{ total: number } | null>(null);
+  const [lastWeekData, setLastWeekData] = useState<WeekData | null>(null);
+  const [thisWeekData, setThisWeekData] = useState<WeekData | null>(null);
   const [loading, setLoading] = useState(true);
 
   // 지난주 = Week 1 (3/4~3/10), 이번주 = Week 2 (3/11~3/17)
   const LAST_WEEK = { start: '2026-03-04', end: '2026-03-10', label: '3/4~3/10' };
   const THIS_WEEK = { start: '2026-03-11', end: '2026-03-17', label: '3/11~3/17' };
+
+  // TODO: OPS View API에서 가져와야 함 (현재는 하드코딩)
+  const orderData = {
+    lastWeek: { orders: 4311, bagRequests: 3108 },  // 주문수 + 백 신청자 수
+    thisWeek: { orders: 3558, bagRequests: 3294 },
+  };
 
   useEffect(() => {
     const fetchData = async () => {
@@ -170,8 +182,16 @@ function RoadmapReview() {
         ]);
         const lastData = await lastRes.json();
         const thisData = await thisRes.json();
-        setLastWeekData({ total: lastData.today?.total || 0 });
-        setThisWeekData({ total: thisData.today?.total || 0 });
+        setLastWeekData({ 
+          total: lastData.today?.total || 0,
+          market: lastData.today?.byProduct?.market || 0,
+          cared: lastData.today?.byProduct?.cared || 0,
+        });
+        setThisWeekData({ 
+          total: thisData.today?.total || 0,
+          market: thisData.today?.byProduct?.market || 0,
+          cared: thisData.today?.byProduct?.cared || 0,
+        });
       } catch (e) {
         console.error('Failed to fetch roadmap data', e);
       } finally {
@@ -242,6 +262,107 @@ function RoadmapReview() {
           </>
         )}
       </div>
+
+      {/* 전체 문의 Contact Rate */}
+      {!loading && (
+        <div className="bg-gray-50 rounded-xl p-6 mb-6">
+          <h3 className="text-lg font-semibold text-gray-700 mb-6">전체 문의 Contact Rate</h3>
+          
+          {(() => {
+            // Contact Rate 계산
+            const lastDenominator = orderData.lastWeek.orders + orderData.lastWeek.bagRequests;
+            const thisDenominator = orderData.thisWeek.orders + orderData.thisWeek.bagRequests;
+            const lastContactRate = lastDenominator > 0 ? (lastTotal / lastDenominator) * 100 : 0;
+            const thisContactRate = thisDenominator > 0 ? (thisTotal / thisDenominator) * 100 : 0;
+            const contactRateDiff = thisContactRate - lastContactRate;
+            const maxRate = Math.max(lastContactRate, thisContactRate, 15);
+
+            return (
+              <>
+                {/* 라인 차트 */}
+                <div className="relative h-48 mb-6">
+                  {/* Y축 레이블 */}
+                  <div className="absolute left-0 top-0 h-full flex flex-col justify-between text-xs text-gray-400 w-8">
+                    <span>{maxRate.toFixed(0)}%</span>
+                    <span>{(maxRate / 2).toFixed(0)}%</span>
+                    <span>0%</span>
+                  </div>
+                  
+                  {/* 차트 영역 */}
+                  <div className="ml-10 h-full border-l border-b border-gray-300 relative">
+                    {/* 라인 */}
+                    <svg className="absolute inset-0 w-full h-full" preserveAspectRatio="none">
+                      <line 
+                        x1="20%" 
+                        y1={`${100 - (lastContactRate / maxRate) * 100}%`}
+                        x2="80%" 
+                        y2={`${100 - (thisContactRate / maxRate) * 100}%`}
+                        stroke="#6B7280" 
+                        strokeWidth="2" 
+                        strokeDasharray="5,5"
+                      />
+                    </svg>
+                    
+                    {/* 포인트 - 지난주 */}
+                    <div 
+                      className="absolute w-3 h-3 bg-gray-500 rounded-full transform -translate-x-1/2 -translate-y-1/2"
+                      style={{ left: '20%', top: `${100 - (lastContactRate / maxRate) * 100}%` }}
+                    />
+                    <div 
+                      className="absolute text-sm font-semibold text-gray-600 transform -translate-x-1/2"
+                      style={{ left: '20%', top: `${100 - (lastContactRate / maxRate) * 100 - 8}%` }}
+                    >
+                      {lastContactRate.toFixed(1)}%
+                    </div>
+                    
+                    {/* 포인트 - 이번주 */}
+                    <div 
+                      className="absolute w-3 h-3 bg-red-500 rounded-full transform -translate-x-1/2 -translate-y-1/2"
+                      style={{ left: '80%', top: `${100 - (thisContactRate / maxRate) * 100}%` }}
+                    />
+                    <div 
+                      className="absolute text-sm font-semibold text-red-500 transform -translate-x-1/2"
+                      style={{ left: '80%', top: `${100 - (thisContactRate / maxRate) * 100 - 8}%` }}
+                    >
+                      {thisContactRate.toFixed(1)}%
+                    </div>
+                  </div>
+                  
+                  {/* X축 레이블 */}
+                  <div className="ml-10 flex justify-between mt-2 text-xs text-gray-500">
+                    <span className="ml-[15%]">지난 주 ({LAST_WEEK.label})</span>
+                    <span className="mr-[15%]">이번 주 ({THIS_WEEK.label})</span>
+                  </div>
+                </div>
+
+                {/* Contact Rate 정의 */}
+                <div className="bg-white rounded-lg p-4 text-sm">
+                  <div className="mb-4">
+                    <p className="font-semibold text-gray-700 mb-2">• 지난 주 전체 Contact Rate : {lastContactRate.toFixed(1)}%</p>
+                    <div className="ml-4 text-gray-600">
+                      <p className="mb-1">◦ 구매 고객님 문의건수 : {lastWeekData?.market || 0}건 + 판매 고객님 문의건수 : {lastWeekData?.cared || 0}건 = <span className="font-semibold">{lastTotal}건</span></p>
+                      <p className="mb-1">◦ <span className="underline">주문수 : {orderData.lastWeek.orders.toLocaleString()}건</span> + <span className="underline">백 신청자 수 : {orderData.lastWeek.bagRequests.toLocaleString()}건</span> = <span className="font-semibold">{lastDenominator.toLocaleString()}건</span></p>
+                    </div>
+                  </div>
+                  
+                  <div>
+                    <p className="font-semibold text-gray-700 mb-2">
+                      • 이번 주 전체 Contact Rate : {thisContactRate.toFixed(1)}% 
+                      <span className={`ml-2 ${contactRateDiff >= 0 ? 'text-red-500' : 'text-green-500'}`}>
+                        ({contactRateDiff >= 0 ? '+' : ''}{contactRateDiff.toFixed(1)}%P WOW)
+                      </span>
+                    </p>
+                    <div className="ml-4 text-gray-600">
+                      <p className="mb-1">◦ 구매 고객님 문의건수 : {thisWeekData?.market || 0}건 + 판매 고객님 문의건수 : {thisWeekData?.cared || 0}건 = <span className="font-semibold">{thisTotal}건</span></p>
+                      <p className="mb-1">◦ <span className="underline">주문수 : {orderData.thisWeek.orders.toLocaleString()}건</span> + <span className="underline">백 신청자 수 : {orderData.thisWeek.bagRequests.toLocaleString()}건</span> = <span className="font-semibold">{thisDenominator.toLocaleString()}건</span></p>
+                    </div>
+                  </div>
+                </div>
+              </>
+            );
+          })()}
+        </div>
+      )}
     </div>
   );
 }
