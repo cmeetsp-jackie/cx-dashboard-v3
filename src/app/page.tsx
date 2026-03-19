@@ -130,7 +130,7 @@ function getCompletedWeeks(): { id: string; label: string; start: string; end: s
 function getPastDailyTabs(): { date: string; label: string }[] {
   const kstNow = getKSTDate();
   const today = formatDate(kstNow);
-  const tabs = [];
+  const tabs: { date: string; label: string }[] = [];
   
   // 완료된 주간들 가져와서 마지막 주간의 종료일 찾기
   const completedWeeks = getCompletedWeeks();
@@ -155,7 +155,7 @@ export default function Dashboard() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [lastUpdated, setLastUpdated] = useState<string>('');
-  const [activeTab, setActiveTab] = useState<'daily' | 'pastDaily' | 'weekly'>('daily');
+  const [activeTab, setActiveTab] = useState<'daily' | 'pastDaily' | 'weekly' | 'roadmap'>('daily');
   const [selectedDate, setSelectedDate] = useState<string>('');  // 과거 날짜 선택
   const [selectedWeek, setSelectedWeek] = useState(getCompletedWeeks()[0]);
   
@@ -379,13 +379,45 @@ export default function Dashboard() {
             </div>
           )}
           
+          {/* 로드맵리뷰 탭 */}
+          <div className="flex bg-white/10 rounded-lg p-1 ml-auto">
+            <button
+              onClick={() => setActiveTab('roadmap')}
+              className={`px-4 py-2 rounded-md text-sm font-medium transition-all ${
+                activeTab === 'roadmap'
+                  ? 'bg-gradient-to-r from-pink-500 to-rose-500 text-white'
+                  : 'text-white hover:bg-white/10'
+              }`}
+            >
+              🗺️ 로드맵리뷰
+            </button>
+          </div>
+          
           {/* 현재 기간 표시 */}
-          <span className="text-yellow-300 font-semibold ml-2">
-            {displayPeriod}
-          </span>
+          {activeTab !== 'roadmap' && (
+            <span className="text-yellow-300 font-semibold ml-2">
+              {displayPeriod}
+            </span>
+          )}
         </div>
       </div>
 
+      {/* 로드맵리뷰 탭 컨텐츠 */}
+      {activeTab === 'roadmap' && (
+        <div className="bg-white rounded-2xl p-8 shadow-xl min-h-[600px]">
+          <h2 className="text-2xl font-bold text-gray-800 mb-6 flex items-center gap-3">
+            🗺️ 로드맵 리뷰
+          </h2>
+          <div className="text-gray-500 text-center py-20">
+            <p className="text-lg">로드맵 리뷰 컨텐츠가 여기에 들어갑니다.</p>
+            <p className="text-sm mt-2">재키님과 함께 내용을 구성 중입니다.</p>
+          </div>
+        </div>
+      )}
+
+      {/* 기존 대시보드 컨텐츠 - 로드맵 탭이 아닐 때만 표시 */}
+      {activeTab !== 'roadmap' && (
+        <>
       {/* 응답률 & 해결률 - 상단 대형 카드 */}
       <div className="grid grid-cols-4 gap-4 mb-6">
         <div className="bg-gradient-to-r from-emerald-500 to-teal-600 rounded-2xl p-5 shadow-xl">
@@ -985,6 +1017,8 @@ export default function Dashboard() {
             </div>
           </div>
         </div>
+      )}
+        </>
       )}
     </div>
   );
