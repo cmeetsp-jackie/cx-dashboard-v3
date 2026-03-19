@@ -265,7 +265,14 @@ function RoadmapReview() {
         {/* 전체 문의 Contact Rate */}
         {!loading && (
           <div className="bg-gray-50 rounded-xl p-6 flex-1">
-          <h3 className="text-lg font-semibold text-gray-700 mb-6">전체 문의 Contact Rate</h3>
+          <div className="flex justify-between items-start mb-6">
+            <h3 className="text-lg font-semibold text-gray-700">전체 문의 Contact Rate</h3>
+            <div className="text-right">
+              <span className="text-xs text-blue-600 bg-blue-50 px-2 py-1 rounded">
+                Contact Rate = 문의건수 ÷ (주문수 + 백신청자수)
+              </span>
+            </div>
+          </div>
           
           {(() => {
             // Contact Rate 계산 (ClickHouse에서 가져온 실제 데이터)
