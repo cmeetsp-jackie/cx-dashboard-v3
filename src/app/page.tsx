@@ -156,8 +156,8 @@ interface WeekData {
   market: number;
   cared: number;
   contactRateData?: { orders: number; caredOrders: number; marketOrders: number; bagRequesters: number };
-  caredSellerBuyerData?: { caredSeller: number; caredBuyer: number; caredUnclassified: number; caredAiResponse: number };
-  marketSellerBuyerData?: { marketSeller: number; marketBuyer: number; marketUnclassified: number };
+  caredSellerBuyerData?: { caredSeller: number; caredBuyer: number; caredCommon: number; caredUnclassified: number; caredAiResponse: number };
+  marketSellerBuyerData?: { marketSeller: number; marketBuyer: number; marketCommon: number; marketUnclassified: number };
 }
 
 function RoadmapReview() {
@@ -187,16 +187,16 @@ function RoadmapReview() {
           market: lastData.today?.byProduct?.market || 0,
           cared: lastData.today?.byProduct?.cared || 0,
           contactRateData: lastData.contactRateData || { orders: 0, caredOrders: 0, marketOrders: 0, bagRequesters: 0 },
-          caredSellerBuyerData: lastData.caredSellerBuyerData || { caredSeller: 0, caredBuyer: 0, caredUnclassified: 0, caredAiResponse: 0 },
-          marketSellerBuyerData: lastData.marketSellerBuyerData || { marketSeller: 0, marketBuyer: 0, marketUnclassified: 0 },
+          caredSellerBuyerData: lastData.caredSellerBuyerData || { caredSeller: 0, caredBuyer: 0, caredCommon: 0, caredUnclassified: 0, caredAiResponse: 0 },
+          marketSellerBuyerData: lastData.marketSellerBuyerData || { marketSeller: 0, marketBuyer: 0, marketCommon: 0, marketUnclassified: 0 },
         });
         setThisWeekData({ 
           total: thisData.today?.total || 0,
           market: thisData.today?.byProduct?.market || 0,
           cared: thisData.today?.byProduct?.cared || 0,
           contactRateData: thisData.contactRateData || { orders: 0, caredOrders: 0, marketOrders: 0, bagRequesters: 0 },
-          caredSellerBuyerData: thisData.caredSellerBuyerData || { caredSeller: 0, caredBuyer: 0, caredUnclassified: 0, caredAiResponse: 0 },
-          marketSellerBuyerData: thisData.marketSellerBuyerData || { marketSeller: 0, marketBuyer: 0, marketUnclassified: 0 },
+          caredSellerBuyerData: thisData.caredSellerBuyerData || { caredSeller: 0, caredBuyer: 0, caredCommon: 0, caredUnclassified: 0, caredAiResponse: 0 },
+          marketSellerBuyerData: thisData.marketSellerBuyerData || { marketSeller: 0, marketBuyer: 0, marketCommon: 0, marketUnclassified: 0 },
         });
       } catch (e) {
         console.error('Failed to fetch roadmap data', e);
@@ -731,11 +731,51 @@ function RoadmapReview() {
             </div>
           </div>
           
+          {/* 공통 문의량 (새로 추가) */}
+          <div className="flex gap-6 mt-4">
+            {/* 케어드 공통 문의량 */}
+            <div className="bg-purple-50 rounded-xl p-4 flex-1">
+              <h5 className="text-md font-semibold text-purple-700 mb-3">공통 문의량 주간비교</h5>
+              <p className="text-xs text-purple-500 mb-2">판매자/구매자 모두 해당하는 문의 (개선제안, 개인정보, 기타, 앱설치 등)</p>
+              {(() => {
+                const lastCommon = lastWeekData?.caredSellerBuyerData?.caredCommon || 0;
+                const thisCommon = thisWeekData?.caredSellerBuyerData?.caredCommon || 0;
+                const commonDiff = thisCommon - lastCommon;
+                const commonDiffPercent = lastCommon > 0 ? ((commonDiff / lastCommon) * 100).toFixed(1) : '0';
+                const isCommonIncrease = commonDiff >= 0;
+                const maxCommon = Math.max(lastCommon, thisCommon, 1);
+                
+                return (
+                  <div className="flex flex-col">
+                    <div className="flex items-end justify-center gap-12 mb-3">
+                      <div className="flex flex-col items-center">
+                        <span className="text-xl font-bold text-gray-600 mb-1">{lastCommon}건</span>
+                        <div className="w-20 bg-gray-400 rounded-t-lg" style={{ height: `${(lastCommon / maxCommon) * 80}px` }} />
+                        <span className="mt-2 text-sm text-gray-500">지난주 ({LAST_WEEK.label})</span>
+                      </div>
+                      <div className="flex flex-col items-center">
+                        <span className="text-xl font-bold text-purple-600 mb-1">{thisCommon}건</span>
+                        <div className="w-20 bg-purple-500 rounded-t-lg" style={{ height: `${(thisCommon / maxCommon) * 80}px` }} />
+                        <span className="mt-2 text-sm text-gray-500">이번주 ({THIS_WEEK.label})</span>
+                      </div>
+                    </div>
+                    <div className="flex justify-center">
+                      <span className={`px-4 py-1 rounded-full text-white text-sm font-medium ${isCommonIncrease ? 'bg-green-500' : 'bg-red-500'}`}>
+                        {isCommonIncrease ? '▲' : '▼'} {Math.abs(commonDiff)}건 ({isCommonIncrease ? '+' : ''}{commonDiffPercent}%)
+                      </span>
+                    </div>
+                  </div>
+                );
+              })()}
+            </div>
+            <div className="flex-1"></div>
+          </div>
+
           {/* AI 문의 & 미분류 문의량 */}
           <div className="flex gap-6 mt-4">
             <div className="bg-gray-100 rounded-xl p-4 flex-1">
               <h5 className="text-md font-semibold text-gray-600 mb-3">AI 문의 & 미분류 문의량 주간비교</h5>
-              <p className="text-xs text-gray-400 mb-2">판매자/구매자 태그가 없는 문의 (내부: AI 응답건수)</p>
+              <p className="text-xs text-gray-400 mb-2">판매자/구매자/공통 태그가 없는 문의 (내부: AI 응답건수)</p>
               {(() => {
                 const lastUnclassified = lastWeekData?.caredSellerBuyerData?.caredUnclassified || 0;
                 const thisUnclassified = thisWeekData?.caredSellerBuyerData?.caredUnclassified || 0;
@@ -1130,11 +1170,50 @@ function RoadmapReview() {
             </div>
           </div>
           
+          {/* 공통 문의량 */}
+          <div className="flex gap-6 mb-4">
+            <div className="bg-purple-50 rounded-xl p-4 flex-1">
+              <h5 className="text-md font-semibold text-purple-700 mb-3">공통 문의량 주간비교</h5>
+              <p className="text-xs text-purple-500 mb-2">판매자/구매자 모두 해당하는 문의 (앱기능관련, 앱오류관련 등)</p>
+              {(() => {
+                const lastCommon = lastWeekData?.marketSellerBuyerData?.marketCommon || 0;
+                const thisCommon = thisWeekData?.marketSellerBuyerData?.marketCommon || 0;
+                const commonDiff = thisCommon - lastCommon;
+                const commonDiffPercent = lastCommon > 0 ? ((commonDiff / lastCommon) * 100).toFixed(1) : '0';
+                const isCommonIncrease = commonDiff >= 0;
+                const maxCommon = Math.max(lastCommon, thisCommon, 1);
+                
+                return (
+                  <div className="flex flex-col">
+                    <div className="flex items-end justify-center gap-12 mb-3">
+                      <div className="flex flex-col items-center">
+                        <span className="text-xl font-bold text-gray-600 mb-1">{lastCommon}건</span>
+                        <div className="w-20 bg-gray-400 rounded-t-lg" style={{ height: `${Math.max((lastCommon / maxCommon) * 80, 10)}px` }} />
+                        <span className="mt-2 text-sm text-gray-500">지난주 ({LAST_WEEK.label})</span>
+                      </div>
+                      <div className="flex flex-col items-center">
+                        <span className="text-xl font-bold text-purple-600 mb-1">{thisCommon}건</span>
+                        <div className="w-20 bg-purple-500 rounded-t-lg" style={{ height: `${Math.max((thisCommon / maxCommon) * 80, 10)}px` }} />
+                        <span className="mt-2 text-sm text-gray-500">이번주 ({THIS_WEEK.label})</span>
+                      </div>
+                    </div>
+                    <div className="flex justify-center">
+                      <span className={`px-4 py-1 rounded-full text-white text-sm font-medium ${isCommonIncrease ? 'bg-green-500' : 'bg-red-500'}`}>
+                        {isCommonIncrease ? '▲' : '▼'} {Math.abs(commonDiff)}건 ({isCommonIncrease ? '+' : ''}{commonDiffPercent}%)
+                      </span>
+                    </div>
+                  </div>
+                );
+              })()}
+            </div>
+            <div className="flex-1"></div>
+          </div>
+
           {/* 미분류 문의량 */}
           <div className="flex gap-6">
             <div className="bg-gray-100 rounded-xl p-4 flex-1">
               <h5 className="text-md font-semibold text-gray-600 mb-3">미분류 문의량 주간비교</h5>
-              <p className="text-xs text-gray-400 mb-2">판매자/구매자 태그가 없는 문의</p>
+              <p className="text-xs text-gray-400 mb-2">판매자/구매자/공통 태그가 없는 문의</p>
               {(() => {
                 const lastUnclassified = lastWeekData?.marketSellerBuyerData?.marketUnclassified || 0;
                 const thisUnclassified = thisWeekData?.marketSellerBuyerData?.marketUnclassified || 0;

@@ -13,6 +13,49 @@ const CLICKHOUSE_PASSWORD = process.env.CLICKHOUSE_PASSWORD!
 // 마켓 태그 (구매자/, 판매자/, 공통/, P2P 등)
 const MARKET_PREFIXES = ['구매자/', '판매자/', '공통/', 'P2P', '마켓']
 
+// ==============================
+// 케어드 태그 분류 (118개)
+// 2026-03-19 재키님 제공 기준
+// ==============================
+
+// 케어드 공통 태그 (9개)
+const CARED_COMMON_TAGS = [
+  '개선제안', '개인정보', '기타', '단말기오류', '서비스오류', 
+  '알림', '알림거부', '앱설치', '회원탈퇴'
+]
+
+// 케어드 구매자 태그 (51개)
+const CARED_BUYER_TAGS = [
+  '결제수단', '배송일정', '배송지변경', '쿠폰재발급', '쿠폰적용', '합배송', '등급', '배송전취소',
+  '구매확정', '이벤트문의_구매활성', '이벤트지급_구매활성', '친구초대_구매활성', '가품신고',
+  '기타문의_반품', '무료반품', '반품분실', '반품수거일정', '반품취소', '수거시간_반품', '오수거_반품',
+  '첫구매_반품', '쿠폰', '환불금액', '환불일정', '회수지변경_반품', '누락배송', '반품가능문의',
+  '반품배송비', '반품절차', '배송일변경', '오배송', '하자제보', '합반품', '기타문의_상품탐색', '남자옷',
+  '상품상세정보', '신상업데이트', '정품확인', '구매자보상', '첫구매_상품탐색'
+]
+
+// 케어드 판매자 태그 (58개)
+const CARED_SELLER_TAGS = [
+  '수수료_구매확정', '반품판매재개', '판매내역', '검수일정', '기타문의_상품화', '누락상품확인_상품화',
+  '미선택귀속_상품화', '준비절차', '판매불가사유', '판매시작일정', '판매정보수정_상품화',
+  '판매철회_상품화', '회수배송비_상품화', '회수배송일정_상품화', '회수상품확인_상품화',
+  '회수지변경_상품화', 'NFS처리변경', '차란백배송일정', '차란백배송지변경', '차란백추가요청',
+  '차란백취소', '기존백수거', '기타문의_옷장정리수거', '상태값변경', '수거개수변경', '수거방법',
+  '수거시간_옷장정리수거', '수거일변경', '수거지변경', '수거취소', '수거확인', '오수거_옷장정리수거',
+  '차란백분실', '기타문의_전시시작', '누락상품확인_전시시작', '판매정보수정_전시시작',
+  '판매철회_전시시작', '할인', '기부', '기부일정', '기부자변경', '미선택귀속_전시종료', '종료처리변경',
+  '회수배송비_전시종료', '회수배송일정_전시종료', '회수상품확인_전시종료', '회수지변경_전시종료',
+  'kg판매', 'kg판매요청', 'kg판매지급', '판매자보상', '기타문의_판매가능상품', '연장', '종료절차',
+  '계좌오류', '기타문의_판매정산', '입금확인', '전환취소', '크레딧전환', '기타문의_판매활성',
+  '수수료_판매활성', '신청방법_판매활성', '이벤트문의_판매활성', '이벤트지급_판매활성',
+  '차란백종류', '친구초대_판매활성', '판매가능상품', 'kg판매신청방법', '남성옷장정리'
+]
+
+// SQL용 태그 리스트 생성 함수
+function toSqlTagList(tags: string[]): string {
+  return tags.map(t => `'${t}'`).join(', ')
+}
+
 interface Chat {
   id: string
   state: string
@@ -224,24 +267,42 @@ async function fetchDailyResolutionStats(startDate: string, endDate: string): Pr
   })
 }
 
-// 마켓 판매자/구매자/미분류 문의 건수 조회 (태그 기반)
-async function fetchMarketSellerBuyerInquiries(startDate: string, endDate: string): Promise<{ marketSeller: number; marketBuyer: number; marketUnclassified: number }> {
+// 마켓 판매자/구매자/공통/미분류 문의 건수 조회 (접두사 기반)
+// 2026-03-19 재키님 제공 기준으로 업데이트
+async function fetchMarketSellerBuyerInquiries(startDate: string, endDate: string): Promise<{ 
+  marketSeller: number; 
+  marketBuyer: number; 
+  marketCommon: number;
+  marketUnclassified: number 
+}> {
   const auth = Buffer.from(`${CLICKHOUSE_USER}:${CLICKHOUSE_PASSWORD}`).toString('base64')
+  
+  // 마켓 조건: P2P, 마켓, 또는 공통/구매자/판매자 접두사가 있는 태그
+  const marketCondition = `
+    arrayExists(x -> x LIKE 'P2P%' OR x LIKE '마켓%' OR x LIKE '공통/%' OR x LIKE '구매자/%' OR x LIKE '판매자/%', tags)
+  `
   
   const query = `
     SELECT 
       countIf(
-        arrayExists(x -> x LIKE 'P2P%' OR x LIKE '마켓%' OR x LIKE '공통/%', tags)
+        ${marketCondition}
         AND arrayExists(x -> x LIKE '판매자/%', tags)
       ) as market_seller,
       countIf(
-        arrayExists(x -> x LIKE 'P2P%' OR x LIKE '마켓%' OR x LIKE '공통/%', tags)
+        ${marketCondition}
         AND arrayExists(x -> x LIKE '구매자/%', tags)
       ) as market_buyer,
       countIf(
-        arrayExists(x -> x LIKE 'P2P%' OR x LIKE '마켓%' OR x LIKE '공통/%', tags)
+        ${marketCondition}
+        AND arrayExists(x -> x LIKE '공통/%', tags)
         AND NOT arrayExists(x -> x LIKE '판매자/%', tags)
         AND NOT arrayExists(x -> x LIKE '구매자/%', tags)
+      ) as market_common,
+      countIf(
+        ${marketCondition}
+        AND NOT arrayExists(x -> x LIKE '판매자/%', tags)
+        AND NOT arrayExists(x -> x LIKE '구매자/%', tags)
+        AND NOT arrayExists(x -> x LIKE '공통/%', tags)
       ) as market_unclassified
     FROM rawdata_channel_talk.user_chats
     WHERE toDate(created_at) >= '${startDate}' AND toDate(created_at) <= '${endDate}'
@@ -259,35 +320,51 @@ async function fetchMarketSellerBuyerInquiries(startDate: string, endDate: strin
     return {
       marketSeller: Number(data.data?.[0]?.market_seller || 0),
       marketBuyer: Number(data.data?.[0]?.market_buyer || 0),
+      marketCommon: Number(data.data?.[0]?.market_common || 0),
       marketUnclassified: Number(data.data?.[0]?.market_unclassified || 0),
     }
   } catch (e) {
     console.error('Failed to fetch market seller/buyer inquiries:', e)
-    return { marketSeller: 0, marketBuyer: 0, marketUnclassified: 0 }
+    return { marketSeller: 0, marketBuyer: 0, marketCommon: 0, marketUnclassified: 0 }
   }
 }
 
-// 케어드 판매자/구매자/미분류/AI응답 문의 건수 조회 (태그 기반)
-async function fetchCaredSellerBuyerInquiries(startDate: string, endDate: string): Promise<{ caredSeller: number; caredBuyer: number; caredUnclassified: number; caredAiResponse: number }> {
+// 케어드 판매자/구매자/공통/미분류/AI응답 문의 건수 조회 (태그명 기반)
+// 2026-03-19 재키님 제공 기준으로 업데이트
+async function fetchCaredSellerBuyerInquiries(startDate: string, endDate: string): Promise<{ 
+  caredSeller: number; 
+  caredBuyer: number; 
+  caredCommon: number;
+  caredUnclassified: number; 
+  caredAiResponse: number 
+}> {
   const auth = Buffer.from(`${CLICKHOUSE_USER}:${CLICKHOUSE_PASSWORD}`).toString('base64')
+  
+  // 케어드 조건: 마켓 태그가 없는 것 (P2P, 마켓, 공통/, 구매자/, 판매자/ 접두사 없음)
+  const caredCondition = `
+    NOT arrayExists(x -> x LIKE 'P2P%' OR x LIKE '마켓%' OR x LIKE '공통/%' OR x LIKE '구매자/%' OR x LIKE '판매자/%', tags)
+  `
   
   const query = `
     SELECT 
       countIf(
-        (has(tags, '케어드') OR (NOT has(tags, '마켓') AND NOT has(tags, 'market')))
-        AND arrayExists(x -> x LIKE '판매자/%', tags)
+        ${caredCondition}
+        AND arrayExists(x -> x IN (${toSqlTagList(CARED_SELLER_TAGS)}), tags)
       ) as cared_seller,
       countIf(
-        (has(tags, '케어드') OR (NOT has(tags, '마켓') AND NOT has(tags, 'market')))
-        AND arrayExists(x -> x LIKE '구매자/%', tags)
+        ${caredCondition}
+        AND arrayExists(x -> x IN (${toSqlTagList(CARED_BUYER_TAGS)}), tags)
       ) as cared_buyer,
       countIf(
-        (has(tags, '케어드') OR (NOT has(tags, '마켓') AND NOT has(tags, 'market')))
-        AND NOT arrayExists(x -> x LIKE '판매자/%', tags)
-        AND NOT arrayExists(x -> x LIKE '구매자/%', tags)
+        ${caredCondition}
+        AND arrayExists(x -> x IN (${toSqlTagList(CARED_COMMON_TAGS)}), tags)
+      ) as cared_common,
+      countIf(
+        ${caredCondition}
+        AND NOT arrayExists(x -> x IN (${toSqlTagList([...CARED_SELLER_TAGS, ...CARED_BUYER_TAGS, ...CARED_COMMON_TAGS])}), tags)
       ) as cared_unclassified,
       countIf(
-        (has(tags, '케어드') OR (NOT has(tags, '마켓') AND NOT has(tags, 'market')))
+        ${caredCondition}
         AND state = 'closed'
         AND assignee_id IS NULL
       ) as cared_ai_response
@@ -307,12 +384,13 @@ async function fetchCaredSellerBuyerInquiries(startDate: string, endDate: string
     return {
       caredSeller: Number(data.data?.[0]?.cared_seller || 0),
       caredBuyer: Number(data.data?.[0]?.cared_buyer || 0),
+      caredCommon: Number(data.data?.[0]?.cared_common || 0),
       caredUnclassified: Number(data.data?.[0]?.cared_unclassified || 0),
       caredAiResponse: Number(data.data?.[0]?.cared_ai_response || 0),
     }
   } catch (e) {
     console.error('Failed to fetch cared seller/buyer inquiries:', e)
-    return { caredSeller: 0, caredBuyer: 0, caredUnclassified: 0, caredAiResponse: 0 }
+    return { caredSeller: 0, caredBuyer: 0, caredCommon: 0, caredUnclassified: 0, caredAiResponse: 0 }
   }
 }
 
