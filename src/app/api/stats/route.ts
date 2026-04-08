@@ -185,7 +185,7 @@ async function fetchFirstResolutionRate(startDate: string, endDate: string): Pro
       toDate(created_at) as date,
       countIf(assignee_id IS NOT NULL) as assigned,
       countIf(assignee_id IS NOT NULL AND state = 'closed' AND toHour(toTimeZone(assumeNotNull(first_replied_at), 'Asia/Seoul')) < 19) as resolved_before_19
-    FROM rawdata_channel_talk.user_chats 
+    FROM rawdata_channel_talk.user_chats FINAL 
     WHERE toDate(created_at) >= '${startDate}' 
       AND toDate(created_at) <= '${endDate}'
     GROUP BY date
@@ -227,7 +227,7 @@ async function fetchDailyResolutionStats(startDate: string, endDate: string): Pr
       count(*) as total,
       countIf(state = 'closed') as closed,
       avgIf(resolution_time, state = 'closed' AND resolution_time > 0) as avg_resolution_time
-    FROM rawdata_channel_talk.user_chats 
+    FROM rawdata_channel_talk.user_chats FINAL 
     WHERE toDate(created_at) >= '${startDate}' 
       AND toDate(created_at) <= '${endDate}'
     GROUP BY date
@@ -306,7 +306,7 @@ async function fetchMarketSellerBuyerInquiries(startDate: string, endDate: strin
         AND NOT arrayExists(x -> x LIKE '구매자/%', tags)
         AND NOT arrayExists(x -> x LIKE '공통/%', tags)
       ) as market_unclassified
-    FROM rawdata_channel_talk.user_chats
+    FROM rawdata_channel_talk.user_chats FINAL
     WHERE toDate(created_at) >= '${startDate}' AND toDate(created_at) <= '${endDate}'
     FORMAT JSON
   `
@@ -371,7 +371,7 @@ async function fetchCaredSellerBuyerInquiries(startDate: string, endDate: string
         AND state = 'closed'
         AND assignee_id IS NULL
       ) as cared_ai_response
-    FROM rawdata_channel_talk.user_chats
+    FROM rawdata_channel_talk.user_chats FINAL
     WHERE toDate(created_at) >= '${startDate}' AND toDate(created_at) <= '${endDate}'
     FORMAT JSON
   `
@@ -440,7 +440,7 @@ async function fetchContactRateData(startDate: string, endDate: string): Promise
   // 백 신청자 수 쿼리
   const bagQuery = `
     SELECT count(DISTINCT charan_user_id) as bag_requesters
-    FROM rawdata_charan.charan_bag_orders 
+    FROM rawdata_charan.charan_bag_orders FINAL 
     WHERE toDate(created_at) >= '${startDate}' AND toDate(created_at) <= '${endDate}'
     FORMAT JSON
   `
@@ -499,7 +499,7 @@ async function fetchChatsFromClickHouse(startDate: string, endDate: string): Pro
       toUnixTimestamp64Milli(first_replied_at) as firstRepliedAt,
       toUnixTimestamp64Milli(first_opened_at) as firstOpenedAt,
       resolution_time as resolutionTime
-    FROM rawdata_channel_talk.user_chats 
+    FROM rawdata_channel_talk.user_chats FINAL 
     WHERE created_at >= '${startDate} 00:00:00' 
       AND created_at < '${endDate} 23:59:59'
     FORMAT JSON
