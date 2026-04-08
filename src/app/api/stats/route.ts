@@ -182,12 +182,12 @@ const MANAGERS: Record<string, string> = {
 async function fetchFirstResolutionRate(startDate: string, endDate: string): Promise<{ date: string; assigned: number; rate: number }[]> {
   const query = `
     SELECT 
-      toDate(created_at) as date,
+      toDate(toTimeZone(created_at, 'Asia/Seoul')) as date,
       countIf(assignee_id IS NOT NULL) as assigned,
       countIf(assignee_id IS NOT NULL AND state = 'closed' AND toHour(toTimeZone(assumeNotNull(first_replied_at), 'Asia/Seoul')) < 19) as resolved_before_19
     FROM rawdata_channel_talk.user_chats FINAL 
-    WHERE toDate(created_at) >= '${startDate}' 
-      AND toDate(created_at) <= '${endDate}'
+    WHERE toDate(toTimeZone(created_at, 'Asia/Seoul')) >= '${startDate}' 
+      AND toDate(toTimeZone(created_at, 'Asia/Seoul')) <= '${endDate}'
     GROUP BY date
     ORDER BY date
     FORMAT JSON
@@ -223,13 +223,13 @@ async function fetchFirstResolutionRate(startDate: string, endDate: string): Pro
 async function fetchDailyResolutionStats(startDate: string, endDate: string): Promise<{ date: string; resolutionRate: number; avgResolutionTimeMin: number; total: number; closed: number }[]> {
   const query = `
     SELECT 
-      toDate(created_at) as date,
+      toDate(toTimeZone(created_at, 'Asia/Seoul')) as date,
       count(*) as total,
       countIf(state = 'closed') as closed,
       avgIf(resolution_time, state = 'closed' AND resolution_time > 0) as avg_resolution_time
     FROM rawdata_channel_talk.user_chats FINAL 
-    WHERE toDate(created_at) >= '${startDate}' 
-      AND toDate(created_at) <= '${endDate}'
+    WHERE toDate(toTimeZone(created_at, 'Asia/Seoul')) >= '${startDate}' 
+      AND toDate(toTimeZone(created_at, 'Asia/Seoul')) <= '${endDate}'
     GROUP BY date
     ORDER BY date
     FORMAT JSON
@@ -307,7 +307,7 @@ async function fetchMarketSellerBuyerInquiries(startDate: string, endDate: strin
         AND NOT arrayExists(x -> x LIKE '공통/%', tags)
       ) as market_unclassified
     FROM rawdata_channel_talk.user_chats FINAL
-    WHERE toDate(created_at) >= '${startDate}' AND toDate(created_at) <= '${endDate}'
+    WHERE toDate(toTimeZone(created_at, 'Asia/Seoul')) >= '${startDate}' AND toDate(toTimeZone(created_at, 'Asia/Seoul')) <= '${endDate}'
     FORMAT JSON
   `
   
@@ -372,7 +372,7 @@ async function fetchCaredSellerBuyerInquiries(startDate: string, endDate: string
         AND assignee_id IS NULL
       ) as cared_ai_response
     FROM rawdata_channel_talk.user_chats FINAL
-    WHERE toDate(created_at) >= '${startDate}' AND toDate(created_at) <= '${endDate}'
+    WHERE toDate(toTimeZone(created_at, 'Asia/Seoul')) >= '${startDate}' AND toDate(toTimeZone(created_at, 'Asia/Seoul')) <= '${endDate}'
     FORMAT JSON
   `
   
@@ -406,7 +406,7 @@ async function fetchContactRateData(startDate: string, endDate: string): Promise
   const ordersQuery = `
     SELECT COUNT(DISTINCT charan_order_id) as order_count
     FROM silver.item_orders_unified 
-    WHERE toDate(created_at) >= '${startDate}' AND toDate(created_at) <= '${endDate}'
+    WHERE toDate(toTimeZone(created_at, 'Asia/Seoul')) >= '${startDate}' AND toDate(toTimeZone(created_at, 'Asia/Seoul')) <= '${endDate}'
       AND status_id >= 200
       AND status_id NOT IN (700, 701)
       AND provider_is_mineis = false
@@ -417,7 +417,7 @@ async function fetchContactRateData(startDate: string, endDate: string): Promise
   const caredOrdersQuery = `
     SELECT COUNT(DISTINCT charan_order_id) as cared_order_count
     FROM silver.item_orders_unified 
-    WHERE toDate(created_at) >= '${startDate}' AND toDate(created_at) <= '${endDate}'
+    WHERE toDate(toTimeZone(created_at, 'Asia/Seoul')) >= '${startDate}' AND toDate(toTimeZone(created_at, 'Asia/Seoul')) <= '${endDate}'
       AND status_id >= 200
       AND status_id NOT IN (700, 701)
       AND provider_is_mineis = false
@@ -429,7 +429,7 @@ async function fetchContactRateData(startDate: string, endDate: string): Promise
   const marketOrdersQuery = `
     SELECT COUNT(DISTINCT charan_order_id) as market_order_count
     FROM silver.item_orders_unified 
-    WHERE toDate(created_at) >= '${startDate}' AND toDate(created_at) <= '${endDate}'
+    WHERE toDate(toTimeZone(created_at, 'Asia/Seoul')) >= '${startDate}' AND toDate(toTimeZone(created_at, 'Asia/Seoul')) <= '${endDate}'
       AND status_id >= 200
       AND status_id NOT IN (700, 701)
       AND provider_is_mineis = false
@@ -441,7 +441,7 @@ async function fetchContactRateData(startDate: string, endDate: string): Promise
   const bagQuery = `
     SELECT count(DISTINCT charan_user_id) as bag_requesters
     FROM rawdata_charan.charan_bag_orders FINAL 
-    WHERE toDate(created_at) >= '${startDate}' AND toDate(created_at) <= '${endDate}'
+    WHERE toDate(toTimeZone(created_at, 'Asia/Seoul')) >= '${startDate}' AND toDate(toTimeZone(created_at, 'Asia/Seoul')) <= '${endDate}'
     FORMAT JSON
   `
   
@@ -500,8 +500,8 @@ async function fetchChatsFromClickHouse(startDate: string, endDate: string): Pro
       toUnixTimestamp64Milli(first_opened_at) as firstOpenedAt,
       resolution_time as resolutionTime
     FROM rawdata_channel_talk.user_chats FINAL 
-    WHERE created_at >= '${startDate} 00:00:00' 
-      AND created_at < '${endDate} 23:59:59'
+    WHERE toDate(toTimeZone(created_at, 'Asia/Seoul')) >= '${startDate}' 
+      AND toDate(toTimeZone(created_at, 'Asia/Seoul')) <= '${endDate}'
     FORMAT JSON
   `
   
