@@ -184,7 +184,7 @@ async function fetchFirstResolutionRate(startDate: string, endDate: string): Pro
     SELECT 
       toDate(created_at) as date,
       countIf(assignee_id IS NOT NULL) as assigned,
-      countIf(assignee_id IS NOT NULL AND state = 'closed' AND toHour(assumeNotNull(first_replied_at)) < 19) as resolved_before_19
+      countIf(assignee_id IS NOT NULL AND state = 'closed' AND toHour(toTimeZone(assumeNotNull(first_replied_at), 'Asia/Seoul')) < 19) as resolved_before_19
     FROM rawdata_channel_talk.user_chats 
     WHERE toDate(created_at) >= '${startDate}' 
       AND toDate(created_at) <= '${endDate}'
