@@ -9,6 +9,10 @@
     "lint": "next lint"
   },
   "dependencies": {
+    "@clickhouse/client-web": "^1.18.2",
+    "axios": "^1.14.0",
+    "clickhouse": "^2.6.0",
+    "dotenv": "^17.4.1",
     "next": "14.2.0",
     "next-auth": "^4.24.13",
     "react": "^18",
