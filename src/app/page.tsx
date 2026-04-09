@@ -66,6 +66,40 @@ function formatDateLabel(dateStr: string): string {
   return `${year}.${month}.${day}`;
 }
 
+// 서비스 시작일 (2026-03-05 목요일)
+const SERVICE_START = '2026-03-05';
+
+// 서비스 시작부터 현재까지 완료된 모든 주 반환
+function getAllWeeksSinceStart(): { id: string; label: string; shortLabel: string; start: string; end: string }[] {
+  const kstNow = getKSTDate();
+  const todayDay = kstNow.getUTCDay();
+  const daysToLastWed = (todayDay + 4) % 7;
+  const latestEnd = new Date(kstNow);
+  latestEnd.setUTCDate(latestEnd.getUTCDate() - daysToLastWed);
+
+  const serviceStart = new Date(SERVICE_START + 'T00:00:00Z');
+  const weeks: { id: string; label: string; shortLabel: string; start: string; end: string }[] = [];
+  let weekNum = 1;
+  const cur = new Date(serviceStart);
+
+  while (true) {
+    const end = new Date(cur);
+    end.setUTCDate(end.getUTCDate() + 6);
+    if (end > latestEnd) break;
+    const lbl = `${cur.getUTCMonth()+1}/${cur.getUTCDate()}~${end.getUTCMonth()+1}/${end.getUTCDate()}`;
+    weeks.push({
+      id: `week${weekNum}`,
+      label: `W${weekNum} (${lbl})`,
+      shortLabel: lbl,
+      start: formatDate(cur),
+      end: formatDate(end),
+    });
+    weekNum++;
+    cur.setUTCDate(cur.getUTCDate() + 7);
+  }
+  return weeks;
+}
+
 // 완료된 주간 목록 생성 (항상 최근 2주만 반환: Week 1 = 전주, Week 2 = 지난주)
 // 주간 기준: 목요일 시작 ~ 수요일 종료 (마인이스 내부 기준)
 function getCompletedWeeks(): { id: string; label: string; start: string; end: string }[] {
@@ -1477,7 +1511,9 @@ export default function Dashboard() {
   const [lastUpdated, setLastUpdated] = useState<string>('');
   const [activeTab, setActiveTab] = useState<'daily' | 'pastDaily' | 'weekly' | 'roadmap'>('daily');
   const [selectedDate, setSelectedDate] = useState<string>('');  // 과거 날짜 선택
-  const [selectedWeek, setSelectedWeek] = useState(getCompletedWeeks()[0]);
+  const allWeeks = getAllWeeksSinceStart();
+  const [selectedWeek, setSelectedWeek] = useState(allWeeks[allWeeks.length - 1] || { id: 'week1', label: 'W1', shortLabel: '', start: '', end: '' });
+  const [weeklyStatsCache, setWeeklyStatsCache] = useState<Record<string, any>>({});
   
   const pastDailyTabs = getPastDailyTabs();
   const completedWeeks = getCompletedWeeks();
@@ -1530,6 +1566,9 @@ export default function Dashboard() {
       fetchData(false, tab, selectedWeek, '');
     } else if (tab === 'weekly') {
       fetchData(false, tab, selectedWeek, '');
+      if (Object.keys(weeklyStatsCache).length === 0) {
+        fetchAllWeeksStats();
+      }
     }
   };
 
@@ -1539,9 +1578,23 @@ export default function Dashboard() {
     fetchData(false, 'pastDaily', selectedWeek, date);
   };
 
-  const handleWeekChange = (week: typeof completedWeeks[0]) => {
+  const handleWeekChange = (week: typeof allWeeks[0]) => {
     setSelectedWeek(week);
     fetchData(false, 'weekly', week, '');
+  };
+
+  // 모든 주 데이터 fetch (weekly 탭에서 처음 한 번만)
+  const fetchAllWeeksStats = async () => {
+    const weeks = getAllWeeksSinceStart();
+    const results = await Promise.all(
+      weeks.map(w =>
+        fetch(`/api/stats?period=weekly&weekStart=${w.start}&weekEnd=${w.end}`, { cache: 'no-store' })
+          .then(r => r.json()).catch(() => null)
+      )
+    );
+    const cache: Record<string, any> = {};
+    weeks.forEach((w, i) => { if (results[i]) cache[w.id] = results[i]; });
+    setWeeklyStatsCache(cache);
   };
 
   useEffect(() => {
@@ -1682,8 +1735,8 @@ export default function Dashboard() {
           
           {/* Weekly 탭일 때 주간 선택 */}
           {activeTab === 'weekly' && (
-            <div className="flex gap-2">
-              {completedWeeks.map((week) => (
+            <div className="flex gap-2 flex-wrap">
+              {allWeeks.map((week) => (
                 <button
                   key={week.id}
                   onClick={() => handleWeekChange(week)}
@@ -2367,53 +2420,45 @@ export default function Dashboard() {
             {/* 1차 해결률 트래커 (주단위) */}
             <div className="flex flex-col items-center">
               {(() => {
-                // Week 1, Week 2 정의
-                const weeks = [
-                  { id: 'week1', label: 'Week 1', range: '3/5~3/11', start: '2026-03-05', end: '2026-03-11' },
-                  { id: 'week2', label: 'Week 2', range: '3/12~3/18', start: '2026-03-12', end: '2026-03-18' },
-                ];
-                
-                // 1차 해결률 데이터 주단위로 집계
-                const weeklyFirstResolution: { label: string; range: string; rate: number; assigned: number }[] = [];
-                
-                weeks.forEach(week => {
+                const weeks = getAllWeeksSinceStart();
+                const weeklyFirstResolution = weeks.map(week => {
+                  const weekStats = weeklyStatsCache[week.id];
                   let totalAssigned = 0;
                   let totalResolvedBefore19 = 0;
-                  
-                  if (stats?.firstResolutionRates) {
-                    stats.firstResolutionRates.forEach(item => {
-                      if (item.date >= week.start && item.date <= week.end) {
-                        totalAssigned += item.assigned;
-                        totalResolvedBefore19 += Math.round(item.assigned * item.rate / 100);
-                      }
+                  if (weekStats?.firstResolutionRates) {
+                    weekStats.firstResolutionRates.forEach((item: any) => {
+                      totalAssigned += item.assigned;
+                      totalResolvedBefore19 += Math.round(item.assigned * item.rate / 100);
                     });
                   }
-                  
                   const rate = totalAssigned > 0 ? Math.round((totalResolvedBefore19 / totalAssigned) * 1000) / 10 : 0;
-                  weeklyFirstResolution.push({ label: week.label, range: week.range, rate, assigned: totalAssigned });
+                  return { id: week.id, label: `W${weeks.indexOf(week)+1}`, range: week.shortLabel, rate, assigned: totalAssigned };
                 });
-                
+
                 return (
                   <>
                     <h3 className="text-white font-bold mb-3 text-center text-lg">🎯 1차 해결률 (주단위)</h3>
-                    <div className="flex items-end gap-6">
+                    <div className="flex items-end gap-4 flex-wrap justify-center">
                       {weeklyFirstResolution.map((item, idx) => {
-                        const isCurrentWeek = item.label === `Week ${completedWeeks.length}`;
+                        const isSelected = item.id === selectedWeek.id;
                         const hasData = item.assigned > 0;
+                        const isLoading = !weeklyStatsCache[item.id] && Object.keys(weeklyStatsCache).length === 0;
                         
                         return (
                           <div key={idx} className="flex flex-col items-center">
-                            <div className="h-6 mb-2"></div>
+                            {isSelected ? (
+                              <span className="bg-yellow-400 text-gray-900 text-xs font-bold px-2 py-0.5 rounded-full mb-2">선택됨</span>
+                            ) : <div className="h-6 mb-2"></div>}
                             
                             <div className={`w-20 h-20 rounded-full flex flex-col items-center justify-center shadow-lg border-4 ${
-                              isCurrentWeek 
-                                ? 'bg-gradient-to-br from-emerald-500 to-teal-600 border-emerald-300 text-white' 
+                              isSelected
+                                ? 'bg-gradient-to-br from-emerald-500 to-teal-600 border-yellow-300 text-white'
                                 : hasData
                                   ? 'bg-gradient-to-br from-cyan-500 to-blue-600 border-cyan-300 text-white'
                                   : 'bg-gradient-to-br from-gray-400 to-gray-500 border-gray-300 text-white'
                             }`}>
-                              <span className="text-lg font-bold">{hasData ? `${item.rate}%` : '-'}</span>
-                              <span className="text-xs">{hasData ? `${item.assigned}건` : '-'}</span>
+                              <span className="text-lg font-bold">{isLoading ? '...' : hasData ? `${item.rate}%` : '-'}</span>
+                              <span className="text-xs">{hasData ? `${item.assigned}건` : ''}</span>
                             </div>
                             
                             <span className="mt-2 text-sm font-semibold text-white">{item.label}</span>
@@ -2423,7 +2468,6 @@ export default function Dashboard() {
                       })}
                     </div>
                     <p className="text-center text-white/50 text-[10px] mt-3">* 1차 해결률(%) / 담당자 배정건</p>
-                    <p className="text-center text-white/40 text-[9px] mt-1 max-w-xs">정의: 해당 주 문의 중 담당자 배정 건 기준, 당일 19시 전 해결 비율</p>
                   </>
                 );
               })()}
@@ -2435,66 +2479,56 @@ export default function Dashboard() {
             {/* 해결률 & 해결시간 트래커 (주단위) */}
             <div className="flex flex-col items-center">
               {(() => {
-                // Week 1, Week 2 정의
-                const weeks = [
-                  { id: 'week1', label: 'Week 1', range: '3/5~3/11', start: '2026-03-05', end: '2026-03-11' },
-                  { id: 'week2', label: 'Week 2', range: '3/12~3/18', start: '2026-03-12', end: '2026-03-18' },
-                ];
-                
-                // 해결률 & 해결시간 데이터 주단위로 집계
-                const weeklyResolution: { label: string; range: string; rate: number; time: number; total: number; closed: number }[] = [];
-                
-                weeks.forEach(week => {
-                  let totalCount = 0;
-                  let closedCount = 0;
-                  let totalResolutionTime = 0;
-                  let resolutionTimeCount = 0;
-                  
-                  if (stats?.dailyResolutionStats) {
-                    stats.dailyResolutionStats.forEach(item => {
-                      if (item.date >= week.start && item.date <= week.end) {
-                        totalCount += item.total;
-                        closedCount += item.closed;
-                        if (item.avgResolutionTimeMin > 0) {
-                          totalResolutionTime += item.avgResolutionTimeMin * item.closed;
-                          resolutionTimeCount += item.closed;
-                        }
+                const weeks = getAllWeeksSinceStart();
+                const weeklyResolution = weeks.map(week => {
+                  const weekStats = weeklyStatsCache[week.id];
+                  let totalCount = 0, closedCount = 0, totalResTime = 0, resTimeCount = 0;
+                  if (weekStats?.dailyResolutionStats) {
+                    weekStats.dailyResolutionStats.forEach((item: any) => {
+                      totalCount += item.total;
+                      closedCount += item.closed;
+                      if (item.avgResolutionTimeMin > 0) {
+                        totalResTime += item.avgResolutionTimeMin * item.closed;
+                        resTimeCount += item.closed;
                       }
                     });
                   }
-                  
                   const rate = totalCount > 0 ? Math.round((closedCount / totalCount) * 1000) / 10 : 0;
-                  const avgTime = resolutionTimeCount > 0 ? Math.round(totalResolutionTime / resolutionTimeCount) : 0;
-                  weeklyResolution.push({ label: week.label, range: week.range, rate, time: avgTime, total: totalCount, closed: closedCount });
+                  const avgTime = resTimeCount > 0 ? Math.round(totalResTime / resTimeCount) : 0;
+                  return { id: week.id, label: `W${weeks.indexOf(week)+1}`, range: week.shortLabel, rate, time: avgTime, total: totalCount, closed: closedCount };
                 });
-                
-                // WoW 해결시간 변화 계산
-                const week1Time = weeklyResolution[0]?.time || 0;
-                const week2Time = weeklyResolution[1]?.time || 0;
-                const timeDiff = week2Time - week1Time; // 음수면 줄어든 것
-                const timeDiffPct = week1Time > 0 ? Math.round((timeDiff / week1Time) * 100) : 0;
-                
+
+                // 직전주 vs 선택주 WoW
+                const selIdx = weeks.findIndex(w => w.id === selectedWeek.id);
+                const prevWeekRes = selIdx > 0 ? weeklyResolution[selIdx - 1] : null;
+                const curWeekRes = selIdx >= 0 ? weeklyResolution[selIdx] : null;
+                const timeDiff = (curWeekRes?.time || 0) - (prevWeekRes?.time || 0);
+                const timeDiffPct = prevWeekRes?.time ? Math.round((timeDiff / prevWeekRes.time) * 100) : 0;
+
                 return (
                   <>
                     <h3 className="text-white font-bold mb-3 text-center text-lg">📅 해결률 & 해결시간 (주단위)</h3>
-                    <div className="flex items-end gap-6">
+                    <div className="flex items-end gap-4 flex-wrap justify-center">
                       {weeklyResolution.map((item, idx) => {
-                        const isCurrentWeek = item.label === `Week ${completedWeeks.length}`;
+                        const isSelected = item.id === selectedWeek.id;
                         const hasData = item.total > 0;
+                        const isLoading = !weeklyStatsCache[item.id] && Object.keys(weeklyStatsCache).length === 0;
                         
                         return (
                           <div key={idx} className="flex flex-col items-center">
-                            <div className="h-6 mb-2"></div>
+                            {isSelected ? (
+                              <span className="bg-yellow-400 text-gray-900 text-xs font-bold px-2 py-0.5 rounded-full mb-2">선택됨</span>
+                            ) : <div className="h-6 mb-2"></div>}
                             
                             <div className={`w-20 h-20 rounded-full flex flex-col items-center justify-center shadow-lg border-4 ${
-                              isCurrentWeek 
-                                ? 'bg-gradient-to-br from-rose-500 to-pink-600 border-rose-300 text-white' 
+                              isSelected
+                                ? 'bg-gradient-to-br from-rose-500 to-pink-600 border-yellow-300 text-white'
                                 : hasData
                                   ? 'bg-gradient-to-br from-indigo-500 to-purple-600 border-indigo-300 text-white'
                                   : 'bg-gradient-to-br from-gray-400 to-gray-500 border-gray-300 text-white'
                             }`}>
-                              <span className="text-lg font-bold">{hasData ? `${item.rate}%` : '-'}</span>
-                              <span className="text-xs">{hasData ? `${item.time}분` : '-'}</span>
+                              <span className="text-lg font-bold">{isLoading ? '...' : hasData ? `${item.rate}%` : '-'}</span>
+                              <span className="text-xs">{hasData ? `${item.time}분` : ''}</span>
                             </div>
                             
                             <span className="mt-2 text-sm font-semibold text-white">{item.label}</span>
@@ -2503,8 +2537,8 @@ export default function Dashboard() {
                         );
                       })}
                     </div>
-                    {/* WoW 해결시간 변화 표시 */}
-                    {week1Time > 0 && week2Time > 0 && (
+                    {/* WoW 해결시간 변화 (직전주 대비) */}
+                    {prevWeekRes && curWeekRes && curWeekRes.total > 0 && prevWeekRes.total > 0 && (
                       <div className={`mt-3 px-4 py-2 rounded-lg ${timeDiff < 0 ? 'bg-green-500/20' : timeDiff > 0 ? 'bg-red-500/20' : 'bg-gray-500/20'}`}>
                         <p className={`text-center text-sm font-bold ${timeDiff < 0 ? 'text-green-400' : timeDiff > 0 ? 'text-red-400' : 'text-gray-400'}`}>
                           {timeDiff < 0 ? '▼' : timeDiff > 0 ? '▲' : '−'} 해결시간 WoW: {Math.abs(timeDiff)}분 ({timeDiff <= 0 ? '' : '+'}{timeDiffPct}%)
