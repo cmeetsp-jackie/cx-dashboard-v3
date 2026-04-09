@@ -1562,12 +1562,13 @@ function RoadmapReview() {
                         <span className="text-sm font-bold text-blue-600">{item.total}건</span>
                       </div>
                       {/* 4주 바 차트 */}
-                      <div className="flex items-end gap-1 h-8">
+                      <div className="flex items-end gap-1 h-10">
                         {item.trend.map((v, i) => (
                           <div key={i} className="flex flex-col items-center flex-1">
+                            <span className={`text-[9px] font-medium mb-0.5 ${i === item.trend.length - 1 ? 'text-blue-600' : 'text-gray-400'}`}>{v}</span>
                             <div
                               className={`w-full rounded-sm ${i === item.trend.length - 1 ? 'bg-blue-500' : 'bg-blue-200'}`}
-                              style={{ height: `${Math.max((v / max) * 28, 2)}px` }}
+                              style={{ height: `${Math.max((v / max) * 24, 2)}px` }}
                             />
                           </div>
                         ))}
@@ -1603,12 +1604,13 @@ function RoadmapReview() {
                         <span className="text-sm font-bold text-orange-600">{item.total}건</span>
                       </div>
                       {/* 4주 바 차트 */}
-                      <div className="flex items-end gap-1 h-8">
+                      <div className="flex items-end gap-1 h-10">
                         {item.trend.map((v, i) => (
                           <div key={i} className="flex flex-col items-center flex-1">
+                            <span className={`text-[9px] font-medium mb-0.5 ${i === item.trend.length - 1 ? 'text-orange-600' : 'text-gray-400'}`}>{v}</span>
                             <div
                               className={`w-full rounded-sm ${i === item.trend.length - 1 ? 'bg-orange-500' : 'bg-orange-200'}`}
-                              style={{ height: `${Math.max((v / max) * 28, 2)}px` }}
+                              style={{ height: `${Math.max((v / max) * 24, 2)}px` }}
                             />
                           </div>
                         ))}
