@@ -208,6 +208,11 @@ function RoadmapReview() {
   const [marketExpanded, setMarketExpanded] = useState(false);
   const [tagTrends, setTagTrends] = useState<{ all: TagTrendGroup; market: TagTrendGroup; cared: TagTrendGroup; weeks: string[] } | null>(null);
   const [tagTab, setTagTab] = useState<'all' | 'market' | 'cared'>('all');
+  const [topTags, setTopTags] = useState<{
+    weeks: string[];
+    market: { tag: string; total: number; trend: number[] }[];
+    cared: { tag: string; total: number; trend: number[] }[];
+  } | null>(null);
 
   // 동적으로 최근 2주 계산 (목~수 기준)
   const completedWeeksForRoadmap = getCompletedWeeks();
@@ -299,16 +304,17 @@ function RoadmapReview() {
           avgResolutionTimeMin: thisClosed > 0 ? Math.round(thisResTime / thisClosed) : 0,
         });
 
-        // 태그 트렌드 조회
+        // 태그 트렌드 + 상위 태그 조회
         if (THIS_WEEK.start && THIS_WEEK.end) {
           try {
-            const tagRes = await fetch(`/api/tag-trends?week2Start=${THIS_WEEK.start}&week2End=${THIS_WEEK.end}`);
-            if (tagRes.ok) {
-              const tagData = await tagRes.json();
-              setTagTrends(tagData);
-            }
+            const [tagRes, topTagRes] = await Promise.all([
+              fetch(`/api/tag-trends?week2Start=${THIS_WEEK.start}&week2End=${THIS_WEEK.end}`),
+              fetch(`/api/top-tags?week2Start=${THIS_WEEK.start}&week2End=${THIS_WEEK.end}`),
+            ]);
+            if (tagRes.ok) setTagTrends(await tagRes.json());
+            if (topTagRes.ok) setTopTags(await topTagRes.json());
           } catch (e) {
-            console.error('Failed to fetch tag trends', e);
+            console.error('Failed to fetch tag data', e);
           }
         }
       } catch (e) {
@@ -1528,6 +1534,98 @@ function RoadmapReview() {
               </div>
             );
           })()}
+        </div>
+      )}
+      {/* 케어드 / 마켓 상위 10개 태그 + 4주 트렌드 */}
+      {!loading && topTags && (
+        <div className="mt-8 border-t border-gray-100 pt-8">
+          <h3 className="text-lg font-bold text-gray-800 mb-6 flex items-center gap-2">
+            📊 상위 10개 태그 분석
+            <span className="text-sm font-normal text-gray-400">최근 주 기준 · 4주 트렌드</span>
+          </h3>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+            {/* 케어드 */}
+            <div>
+              <h4 className="text-sm font-bold text-blue-700 mb-3 flex items-center gap-1">
+                📦 케어드 Top 10
+              </h4>
+              <div className="space-y-2">
+                {topTags.cared.map((item, idx) => {
+                  const max = Math.max(...item.trend, 1);
+                  return (
+                    <div key={item.tag} className="bg-white border border-gray-100 rounded-lg px-4 py-2.5 shadow-sm">
+                      <div className="flex items-center justify-between mb-1.5">
+                        <div className="flex items-center gap-2">
+                          <span className="text-xs font-bold text-gray-400 w-5">{idx + 1}</span>
+                          <span className="text-sm font-semibold text-gray-800 truncate max-w-[180px]" title={item.tag}>{item.tag}</span>
+                        </div>
+                        <span className="text-sm font-bold text-blue-600">{item.total}건</span>
+                      </div>
+                      {/* 4주 바 차트 */}
+                      <div className="flex items-end gap-1 h-8">
+                        {item.trend.map((v, i) => (
+                          <div key={i} className="flex flex-col items-center flex-1">
+                            <div
+                              className={`w-full rounded-sm ${i === item.trend.length - 1 ? 'bg-blue-500' : 'bg-blue-200'}`}
+                              style={{ height: `${Math.max((v / max) * 28, 2)}px` }}
+                            />
+                          </div>
+                        ))}
+                      </div>
+                      <div className="flex gap-1 mt-0.5">
+                        {item.trend.map((v, i) => (
+                          <div key={i} className="flex-1 text-center">
+                            <span className="text-[9px] text-gray-400">{topTags.weeks[i]?.split('~')[0]}</span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* 마켓 */}
+            <div>
+              <h4 className="text-sm font-bold text-orange-700 mb-3 flex items-center gap-1">
+                🛍️ 마켓 Top 10
+              </h4>
+              <div className="space-y-2">
+                {topTags.market.map((item, idx) => {
+                  const max = Math.max(...item.trend, 1);
+                  return (
+                    <div key={item.tag} className="bg-white border border-gray-100 rounded-lg px-4 py-2.5 shadow-sm">
+                      <div className="flex items-center justify-between mb-1.5">
+                        <div className="flex items-center gap-2">
+                          <span className="text-xs font-bold text-gray-400 w-5">{idx + 1}</span>
+                          <span className="text-sm font-semibold text-gray-800 truncate max-w-[180px]" title={item.tag}>{item.tag}</span>
+                        </div>
+                        <span className="text-sm font-bold text-orange-600">{item.total}건</span>
+                      </div>
+                      {/* 4주 바 차트 */}
+                      <div className="flex items-end gap-1 h-8">
+                        {item.trend.map((v, i) => (
+                          <div key={i} className="flex flex-col items-center flex-1">
+                            <div
+                              className={`w-full rounded-sm ${i === item.trend.length - 1 ? 'bg-orange-500' : 'bg-orange-200'}`}
+                              style={{ height: `${Math.max((v / max) * 28, 2)}px` }}
+                            />
+                          </div>
+                        ))}
+                      </div>
+                      <div className="flex gap-1 mt-0.5">
+                        {item.trend.map((v, i) => (
+                          <div key={i} className="flex-1 text-center">
+                            <span className="text-[9px] text-gray-400">{topTags.weeks[i]?.split('~')[0]}</span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          </div>
         </div>
       )}
     </div>
