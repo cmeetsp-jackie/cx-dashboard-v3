@@ -757,9 +757,9 @@ export async function GET(request: Request) {
     let trackerStartDate = statsStartDate
     let trackerEndDate = statsEndDate
     if (period === 'weekly') {
-      // Weekly 탭: Week 1 시작(3/5)부터 최신 완료 주 종료일까지 전체 데이터 필요
-      trackerStartDate = '2026-03-05'  // SERVICE_START_DATE
-      trackerEndDate = '2026-03-18'    // Week 2 종료일 (추후 동적으로 계산 가능)
+      // Weekly 탭: weekStart ~ weekEnd 기준
+      trackerStartDate = weekStart
+      trackerEndDate = weekEnd
     } else {
       // Daily 탭: 오늘 기준 최근 7일
       const now = new Date()

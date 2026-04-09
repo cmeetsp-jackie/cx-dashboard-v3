@@ -66,62 +66,34 @@ function formatDateLabel(dateStr: string): string {
   return `${year}.${month}.${day}`;
 }
 
-// 서비스 시작일 (Week 1 시작) - 유일한 기준점
-const SERVICE_START_DATE = '2026-03-05';  // 수요일 (Week 1: 3/5~3/11, Week 2: 3/12~3/18)
-
-// 주간 시작일 계산 (화요일 기준)
-function getWeekStart(date: Date): Date {
-  const d = new Date(date);
-  const day = d.getUTCDay();
-  // 화요일(2)이 주 시작
-  const diff = day >= 2 ? day - 2 : day + 5;
-  d.setUTCDate(d.getUTCDate() - diff);
-  return d;
-}
-
-// 완료된 주간 목록 생성 (동적 계산)
+// 완료된 주간 목록 생성 (항상 최근 2주만 반환: Week 1 = 전주, Week 2 = 지난주)
+// 주간 기준: 목요일 시작 ~ 수요일 종료 (마인이스 내부 기준)
 function getCompletedWeeks(): { id: string; label: string; start: string; end: string }[] {
   const kstNow = getKSTDate();
-  const today = formatDate(kstNow);
-  const weeks = [];
-  
-  // 서비스 시작일부터 7일씩 주간 생성
-  const serviceStart = new Date(SERVICE_START_DATE);
-  let weekNum = 1;
-  let weekStart = new Date(serviceStart);
-  
-  while (true) {
-    const weekEnd = new Date(weekStart);
-    weekEnd.setUTCDate(weekEnd.getUTCDate() + 6);  // 월요일까지 (7일간)
-    
-    const weekStartStr = formatDate(weekStart);
-    const weekEndStr = formatDate(weekEnd);
-    
-    // 해당 주간이 완료되었는지 확인 (오늘이 다음 주 화요일 이후)
-    const nextWeekStart = new Date(weekEnd);
-    nextWeekStart.setUTCDate(nextWeekStart.getUTCDate() + 1);
-    
-    if (today >= formatDate(nextWeekStart)) {
-      // 완료된 주간
-      const startMonth = weekStart.getUTCMonth() + 1;
-      const startDay = weekStart.getUTCDate();
-      const endMonth = weekEnd.getUTCMonth() + 1;
-      const endDay = weekEnd.getUTCDate();
-      
-      weeks.push({
-        id: `week${weekNum}`,
-        label: `Week ${weekNum} (${startMonth}/${startDay}~${endMonth}/${endDay})`,
-        start: weekStartStr,
-        end: weekEndStr
-      });
-      
-      weekNum++;
-      weekStart = new Date(nextWeekStart);
-    } else {
-      // 현재 진행 중인 주간이면 중단
-      break;
-    }
-  }
+  const todayDay = kstNow.getUTCDay(); // 0=Sun,1=Mon,2=Tue,3=Wed,4=Thu,5=Fri,6=Sat
+
+  // 가장 최근에 완료된 수요일 찾기 (오늘이 수요일이면 오늘, 아니면 직전 수요일)
+  const daysToLastWed = (todayDay + 4) % 7;  // 수요일(3)로부터 오늘까지의 거리
+  const week2End = new Date(kstNow);
+  week2End.setUTCDate(week2End.getUTCDate() - daysToLastWed);
+
+  // Week 2: 가장 최근 완료된 목~수 (7일)
+  const week2Start = new Date(week2End);
+  week2Start.setUTCDate(week2Start.getUTCDate() - 6);
+
+  // Week 1: 그 전 목~수
+  const week1End = new Date(week2Start);
+  week1End.setUTCDate(week1End.getUTCDate() - 1);
+  const week1Start = new Date(week1End);
+  week1Start.setUTCDate(week1Start.getUTCDate() - 6);
+
+  const fmt = (d: Date) => formatDate(d);
+  const lbl = (s: Date, e: Date) => `${s.getUTCMonth()+1}/${s.getUTCDate()}~${e.getUTCMonth()+1}/${e.getUTCDate()}`;
+
+  const weeks = [
+    { id: 'week1', label: `Week 1 (${lbl(week1Start, week1End)})`, start: fmt(week1Start), end: fmt(week1End) },
+    { id: 'week2', label: `Week 2 (${lbl(week2Start, week2End)})`, start: fmt(week2Start), end: fmt(week2End) },
+  ];
   
   return weeks;
 }
@@ -172,10 +144,14 @@ function RoadmapReview() {
   const [caredExpanded, setCaredExpanded] = useState(false);
   const [marketExpanded, setMarketExpanded] = useState(false);
 
-  // 지난주 = Week 1 (3/4~3/10), 이번주 = Week 2 (3/11~3/17)
-  // 주간 기준: 수요일~화요일
-  const LAST_WEEK = { start: '2026-03-05', end: '2026-03-11', label: '3/5~3/11' };  // Week 1
-  const THIS_WEEK = { start: '2026-03-12', end: '2026-03-18', label: '3/12~3/18' };  // Week 2
+  // 동적으로 최근 2주 계산 (목~수 기준)
+  const completedWeeksForRoadmap = getCompletedWeeks();
+  const LAST_WEEK = completedWeeksForRoadmap[0]
+    ? { start: completedWeeksForRoadmap[0].start, end: completedWeeksForRoadmap[0].end, label: completedWeeksForRoadmap[0].label.replace('Week 1 (','').replace(')','') }
+    : { start: '', end: '', label: '' };
+  const THIS_WEEK = completedWeeksForRoadmap[1]
+    ? { start: completedWeeksForRoadmap[1].start, end: completedWeeksForRoadmap[1].end, label: completedWeeksForRoadmap[1].label.replace('Week 2 (','').replace(')','') }
+    : { start: '', end: '', label: '' };
 
   useEffect(() => {
     const fetchData = async () => {
