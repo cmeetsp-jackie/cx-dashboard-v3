@@ -137,12 +137,36 @@ interface WeekData {
   avgResolutionTimeMin?: number;
 }
 
+interface TagTrendItem {
+  tag: string;
+  delta: number;
+  w1: number;
+  w2: number;
+  trend: number[];
+  weekLabels: string[];
+}
+
+function MiniSparkline({ values, color }: { values: number[]; color: string }) {
+  const max = Math.max(...values, 1);
+  const w = 80, h = 32;
+  const pts = values.map((v, i) => `${(i / (values.length - 1)) * w},${h - (v / max) * (h - 4)}`).join(' ');
+  return (
+    <svg width={w} height={h} className="inline-block">
+      <polyline points={pts} fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+      {values.map((v, i) => (
+        <circle key={i} cx={(i / (values.length - 1)) * w} cy={h - (v / max) * (h - 4)} r="2.5" fill={color} />
+      ))}
+    </svg>
+  );
+}
+
 function RoadmapReview() {
   const [lastWeekData, setLastWeekData] = useState<WeekData | null>(null);
   const [thisWeekData, setThisWeekData] = useState<WeekData | null>(null);
   const [loading, setLoading] = useState(true);
   const [caredExpanded, setCaredExpanded] = useState(false);
   const [marketExpanded, setMarketExpanded] = useState(false);
+  const [tagTrends, setTagTrends] = useState<{ top5Increased: TagTrendItem[]; top5Decreased: TagTrendItem[]; weeks: string[] } | null>(null);
 
   // 동적으로 최근 2주 계산 (목~수 기준)
   const completedWeeksForRoadmap = getCompletedWeeks();
@@ -233,6 +257,18 @@ function RoadmapReview() {
           resolutionRate: thisTotal2 > 0 ? Math.round((thisClosed / thisTotal2) * 1000) / 10 : 0,
           avgResolutionTimeMin: thisClosed > 0 ? Math.round(thisResTime / thisClosed) : 0,
         });
+      // 태그 트렌드 조회
+      if (THIS_WEEK.start && THIS_WEEK.end) {
+        try {
+          const tagRes = await fetch(`/api/tag-trends?week2Start=${THIS_WEEK.start}&week2End=${THIS_WEEK.end}`);
+          if (tagRes.ok) {
+            const tagData = await tagRes.json();
+            setTagTrends(tagData);
+          }
+        } catch (e) {
+          console.error('Failed to fetch tag trends', e);
+        }
+      }
       } catch (e) {
         console.error('Failed to fetch roadmap data', e);
       } finally {
@@ -2423,6 +2459,83 @@ export default function Dashboard() {
                   </>
                 );
               })()}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 태그 증감 분석 */}
+      {!loading && tagTrends && (
+        <div className="mt-8 border-t border-gray-100 pt-8">
+          <h3 className="text-lg font-bold text-gray-800 mb-6 flex items-center gap-2">
+            🏷️ 태그 증감 분석
+            <span className="text-sm font-normal text-gray-400">
+              Week 1 ({LAST_WEEK.label}) → Week 2 ({THIS_WEEK.label})
+            </span>
+          </h3>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            {/* 상위 5 증가 */}
+            <div className="bg-green-50 rounded-xl p-5">
+              <h4 className="text-sm font-bold text-green-700 mb-4 flex items-center gap-1">
+                📈 가장 크게 늘어난 태그 Top 5
+              </h4>
+              <div className="space-y-3">
+                {tagTrends.top5Increased.map((item) => (
+                  <div key={item.tag} className="bg-white rounded-lg p-3 shadow-sm">
+                    <div className="flex items-center justify-between mb-2">
+                      <span className="text-sm font-semibold text-gray-800 truncate max-w-[140px]" title={item.tag}>
+                        {item.tag}
+                      </span>
+                      <div className="flex items-center gap-2 text-xs">
+                        <span className="text-gray-400">{item.w1}건</span>
+                        <span className="text-gray-400">→</span>
+                        <span className="text-green-600 font-bold">{item.w2}건</span>
+                        <span className="text-green-600 font-bold">(+{item.delta})</span>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <MiniSparkline values={item.trend} color="#16a34a" />
+                      <div className="flex flex-wrap gap-1">
+                        {item.trend.map((v, i) => (
+                          <span key={i} className="text-[10px] text-gray-400">{tagTrends.weeks[i]?.split('~')[0]}: {v}</span>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* 상위 5 감소 */}
+            <div className="bg-red-50 rounded-xl p-5">
+              <h4 className="text-sm font-bold text-red-700 mb-4 flex items-center gap-1">
+                📉 가장 크게 줄어든 태그 Top 5
+              </h4>
+              <div className="space-y-3">
+                {tagTrends.top5Decreased.map((item) => (
+                  <div key={item.tag} className="bg-white rounded-lg p-3 shadow-sm">
+                    <div className="flex items-center justify-between mb-2">
+                      <span className="text-sm font-semibold text-gray-800 truncate max-w-[140px]" title={item.tag}>
+                        {item.tag}
+                      </span>
+                      <div className="flex items-center gap-2 text-xs">
+                        <span className="text-gray-400">{item.w1}건</span>
+                        <span className="text-gray-400">→</span>
+                        <span className="text-red-600 font-bold">{item.w2}건</span>
+                        <span className="text-red-600 font-bold">({item.delta})</span>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <MiniSparkline values={item.trend} color="#dc2626" />
+                      <div className="flex flex-wrap gap-1">
+                        {item.trend.map((v, i) => (
+                          <span key={i} className="text-[10px] text-gray-400">{tagTrends.weeks[i]?.split('~')[0]}: {v}</span>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
             </div>
           </div>
         </div>
