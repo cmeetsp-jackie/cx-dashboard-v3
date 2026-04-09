@@ -180,6 +180,11 @@ interface TagTrendItem {
   weekLabels: string[];
 }
 
+interface TagTrendGroup {
+  top5Increased: TagTrendItem[];
+  top5Decreased: TagTrendItem[];
+}
+
 function MiniSparkline({ values, color }: { values: number[]; color: string }) {
   const max = Math.max(...values, 1);
   const w = 80, h = 32;
@@ -201,7 +206,8 @@ function RoadmapReview() {
   const [loading, setLoading] = useState(true);
   const [caredExpanded, setCaredExpanded] = useState(false);
   const [marketExpanded, setMarketExpanded] = useState(false);
-  const [tagTrends, setTagTrends] = useState<{ top5Increased: TagTrendItem[]; top5Decreased: TagTrendItem[]; weeks: string[] } | null>(null);
+  const [tagTrends, setTagTrends] = useState<{ all: TagTrendGroup; market: TagTrendGroup; cared: TagTrendGroup; weeks: string[] } | null>(null);
+  const [tagTab, setTagTab] = useState<'all' | 'market' | 'cared'>('all');
 
   // 동적으로 최근 2주 계산 (목~수 기준)
   const completedWeeksForRoadmap = getCompletedWeeks();
@@ -1442,62 +1448,86 @@ function RoadmapReview() {
       {/* 태그 증감 분석 */}
       {!loading && tagTrends != null && (
         <div className="mt-8 border-t border-gray-100 pt-8">
-          <h3 className="text-lg font-bold text-gray-800 mb-6 flex items-center gap-2">
-            🏷️ 태그 증감 분석
-            <span className="text-sm font-normal text-gray-400">
-              Week 1 ({LAST_WEEK.label}) → Week 2 ({THIS_WEEK.label})
-            </span>
-          </h3>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <div className="bg-green-50 rounded-xl p-5">
-              <h4 className="text-sm font-bold text-green-700 mb-4">📈 가장 크게 늘어난 태그 Top 5</h4>
-              <div className="space-y-3">
-                {tagTrends.top5Increased.map((item) => (
-                  <div key={item.tag} className="bg-white rounded-lg p-3 shadow-sm">
-                    <div className="flex items-center justify-between mb-2">
-                      <span className="text-sm font-semibold text-gray-800 truncate max-w-[140px]" title={item.tag}>{item.tag}</span>
-                      <div className="flex items-center gap-1 text-xs">
-                        <span className="text-gray-400">{item.w1}건 →</span>
-                        <span className="text-green-600 font-bold">{item.w2}건 (+{item.delta})</span>
-                      </div>
-                    </div>
-                    <div className="flex items-center gap-3">
-                      <MiniSparkline values={item.trend} color="#16a34a" />
-                      <div className="flex flex-wrap gap-1">
-                        {item.trend.map((v, i) => (
-                          <span key={i} className="text-[10px] text-gray-400">{tagTrends.weeks[i]?.split('~')[0]}: {v}</span>
-                        ))}
-                      </div>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-            <div className="bg-red-50 rounded-xl p-5">
-              <h4 className="text-sm font-bold text-red-700 mb-4">📉 가장 크게 줄어든 태그 Top 5</h4>
-              <div className="space-y-3">
-                {tagTrends.top5Decreased.map((item) => (
-                  <div key={item.tag} className="bg-white rounded-lg p-3 shadow-sm">
-                    <div className="flex items-center justify-between mb-2">
-                      <span className="text-sm font-semibold text-gray-800 truncate max-w-[140px]" title={item.tag}>{item.tag}</span>
-                      <div className="flex items-center gap-1 text-xs">
-                        <span className="text-gray-400">{item.w1}건 →</span>
-                        <span className="text-red-600 font-bold">{item.w2}건 ({item.delta})</span>
-                      </div>
-                    </div>
-                    <div className="flex items-center gap-3">
-                      <MiniSparkline values={item.trend} color="#dc2626" />
-                      <div className="flex flex-wrap gap-1">
-                        {item.trend.map((v, i) => (
-                          <span key={i} className="text-[10px] text-gray-400">{tagTrends.weeks[i]?.split('~')[0]}: {v}</span>
-                        ))}
-                      </div>
-                    </div>
-                  </div>
-                ))}
-              </div>
+          <div className="flex items-center justify-between mb-5">
+            <h3 className="text-lg font-bold text-gray-800 flex items-center gap-2">
+              🏷️ 태그 증감 분석
+              <span className="text-sm font-normal text-gray-400">
+                Week 1 ({LAST_WEEK.label}) → Week 2 ({THIS_WEEK.label})
+              </span>
+            </h3>
+            {/* 탭 버튼 */}
+            <div className="flex gap-1">
+              {([['all', '전체'], ['market', '🛍️ 마켓'], ['cared', '📦 케어드']] as const).map(([key, label]) => (
+                <button
+                  key={key}
+                  onClick={() => setTagTab(key)}
+                  className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-all ${
+                    tagTab === key
+                      ? 'bg-gray-800 text-white'
+                      : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                  }`}
+                >
+                  {label}
+                </button>
+              ))}
             </div>
           </div>
+
+          {(() => {
+            const group = tagTrends[tagTab];
+            return (
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div className="bg-green-50 rounded-xl p-5">
+                  <h4 className="text-sm font-bold text-green-700 mb-4">📈 가장 크게 늘어난 태그 Top 5</h4>
+                  <div className="space-y-3">
+                    {group.top5Increased.map((item) => (
+                      <div key={item.tag} className="bg-white rounded-lg p-3 shadow-sm">
+                        <div className="flex items-center justify-between mb-2">
+                          <span className="text-sm font-semibold text-gray-800 truncate max-w-[140px]" title={item.tag}>{item.tag}</span>
+                          <div className="flex items-center gap-1 text-xs">
+                            <span className="text-gray-400">{item.w1}건 →</span>
+                            <span className="text-green-600 font-bold">{item.w2}건 (+{item.delta})</span>
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-3">
+                          <MiniSparkline values={item.trend} color="#16a34a" />
+                          <div className="flex flex-wrap gap-1">
+                            {item.trend.map((v, i) => (
+                              <span key={i} className="text-[10px] text-gray-400">{tagTrends.weeks[i]?.split('~')[0]}: {v}</span>
+                            ))}
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+                <div className="bg-red-50 rounded-xl p-5">
+                  <h4 className="text-sm font-bold text-red-700 mb-4">📉 가장 크게 줄어든 태그 Top 5</h4>
+                  <div className="space-y-3">
+                    {group.top5Decreased.map((item) => (
+                      <div key={item.tag} className="bg-white rounded-lg p-3 shadow-sm">
+                        <div className="flex items-center justify-between mb-2">
+                          <span className="text-sm font-semibold text-gray-800 truncate max-w-[140px]" title={item.tag}>{item.tag}</span>
+                          <div className="flex items-center gap-1 text-xs">
+                            <span className="text-gray-400">{item.w1}건 →</span>
+                            <span className="text-red-600 font-bold">{item.w2}건 ({item.delta})</span>
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-3">
+                          <MiniSparkline values={item.trend} color="#dc2626" />
+                          <div className="flex flex-wrap gap-1">
+                            {item.trend.map((v, i) => (
+                              <span key={i} className="text-[10px] text-gray-400">{tagTrends.weeks[i]?.split('~')[0]}: {v}</span>
+                            ))}
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            );
+          })()}
         </div>
       )}
     </div>
