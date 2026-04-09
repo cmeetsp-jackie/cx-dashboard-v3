@@ -758,8 +758,8 @@ export async function GET(request: Request) {
     let trackerEndDate = statsEndDate
     if (period === 'weekly') {
       // Weekly 탭: weekStart ~ weekEnd 기준
-      trackerStartDate = weekStart
-      trackerEndDate = weekEnd
+      trackerStartDate = weekStart as string
+      trackerEndDate = weekEnd as string
     } else {
       // Daily 탭: 오늘 기준 최근 7일
       const now = new Date()

@@ -73,7 +73,7 @@ export async function GET(request: Request) {
     const week2Counts = weekCounts[4]
 
     // 전체 태그 목록
-    const allTags = new Set([...Object.keys(week1Counts), ...Object.keys(week2Counts)])
+    const allTags = Array.from(new Set([...Object.keys(week1Counts), ...Object.keys(week2Counts)]))
 
     // delta 계산 (절대값 기준, 최소 5건 이상인 태그만)
     const deltas: { tag: string; delta: number; w1: number; w2: number }[] = []
