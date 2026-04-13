@@ -200,7 +200,7 @@ function SegmentCard({ data, accent }: { data: SheetData; accent: string }) {
   return (
     <>
       <div
-        className={`bg-white rounded-xl border-l-4 ${accent} shadow-sm p-4 cursor-pointer hover:shadow-md transition-shadow`}
+        className={`bg-white rounded-xl border-l-4 ${accent} shadow-sm p-4 cursor-pointer hover:shadow-lg hover:-translate-y-0.5 active:scale-[0.98] transition-all group`}
         onClick={() => setOpen(true)}
       >
         <div className="flex items-start justify-between mb-2">
@@ -212,7 +212,9 @@ function SegmentCard({ data, accent }: { data: SheetData; accent: string }) {
           <div className="flex flex-col items-end gap-1">
             <span className="text-xs text-gray-400">{o.total}건</span>
             {data.mom !== null && <MoMBadge mom={data.mom} />}
-            <span className="text-xs text-blue-400 mt-1">자세히 →</span>
+            <span className="text-[11px] font-medium text-blue-500 bg-blue-50 group-hover:bg-blue-100 px-2 py-0.5 rounded-full mt-1 transition-colors">
+              상세보기 →
+            </span>
           </div>
         </div>
 
@@ -224,6 +226,10 @@ function SegmentCard({ data, accent }: { data: SheetData; accent: string }) {
         </div>
 
         <MonthChart monthly={data.monthly} />
+        <div className="mt-3 pt-3 border-t border-gray-100 flex items-center justify-center gap-1 text-xs text-gray-400 group-hover:text-blue-500 transition-colors">
+          <span>클릭해서 월별 추이 · 코멘트 상세보기</span>
+          <span className="group-hover:translate-x-0.5 transition-transform">→</span>
+        </div>
       </div>
 
       {open && <DetailModal data={data} onClose={() => setOpen(false)} />}
