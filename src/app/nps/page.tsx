@@ -6,7 +6,7 @@ import { useRouter } from 'next/navigation';
 interface MonthlyNPS { month: string; nps: number; promoters: number; passives: number; detractors: number; total: number; }
 interface DetailComment { score: number; text: string; month: string; }
 interface SheetData {
-  label: string; type: string; category: string;
+  label: string; type: string; category: string; id: string;
   overall: { nps: number; promoters: number; passives: number; detractors: number; total: number } | null;
   monthly: MonthlyNPS[];
   mom: number | null; momLabel: string | null; currLabel: string | null;
@@ -154,7 +154,13 @@ function DetailModal({ data, onClose }: { data: SheetData; onClose: () => void }
           {/* 코멘트 */}
           {data.detailComments.length > 0 && (
             <div>
-              <p className="text-sm font-semibold text-gray-700 mb-3">최근 응답 코멘트 (최근 3개월)</p>
+              <div className="flex items-center justify-between mb-3">
+                <p className="text-sm font-semibold text-gray-700">최근 응답 코멘트 (최근 3개월)</p>
+                <a href={`https://docs.google.com/spreadsheets/d/${data.id}`} target="_blank" rel="noopener noreferrer"
+                  className="text-xs text-blue-500 hover:underline flex items-center gap-1">
+                  📊 구글 시트 전체 보기 →
+                </a>
+              </div>
               <div className="flex gap-2 mb-3">
                 {([['all', '전체'], ['promoter', '추천 9-10'], ['passive', '중립 7-8'], ['detractor', '비추 0-6']] as const).map(([f, label]) => (
                   <button key={f} onClick={() => setFilter(f)}
