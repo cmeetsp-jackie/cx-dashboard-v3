@@ -1788,6 +1788,12 @@ export default function Dashboard() {
             </div>
           </div>
           <div className="flex items-center gap-3 text-white/80 text-sm">
+            <a
+              href="/nps"
+              className="bg-white/20 hover:bg-white/30 text-white text-sm font-medium px-4 py-2 rounded-lg transition-colors flex items-center gap-2"
+            >
+              📊 NPS 대시보드
+            </a>
             {lastUpdated && (
               <span>마지막 업데이트: {lastUpdated} · 5분마다 자동 갱신</span>
             )}
