@@ -10,119 +10,90 @@ const SHEETS = [
   { id: '1SMEMqrpoSyQstvRR4oo3gxDyfF6INc3zYMHc19y-Ct0', sheet: 'Smore-ngATD9yGEN-mVT', label: '마켓 판매', type: 'seller', category: 'market' },
 ];
 
-function getScoreColumn(rows: string[][]): number {
-  // 헤더에서 점수 컬럼 찾기 (숫자가 있는 컬럼)
+function findScoreCol(rows: string[][]): number {
   if (rows.length < 2) return 1;
-  for (let col = 0; col < (rows[0] || []).length; col++) {
-    const val = (rows[1] || [])[col];
-    if (val && !isNaN(Number(val)) && Number(val) >= 0 && Number(val) <= 10) return col;
+  for (let c = 0; c < (rows[0] || []).length; c++) {
+    const v = Number((rows[1] || [])[c]);
+    if (!isNaN(v) && v >= 0 && v <= 10) return c;
   }
   return 1;
 }
 
-function getDateColumn(rows: string[][]): number {
-  if (rows.length === 0) return 0;
-  const header = rows[0] || [];
-  for (let i = 0; i < header.length; i++) {
-    if (header[i].toLowerCase().includes('submitted') || header[i].includes('날짜')) return i;
-  }
-  return 0;
-}
-
-function getCommentColumn(rows: string[][]): number {
-  if (rows.length === 0) return 2;
-  const header = rows[0] || [];
-  for (let i = 0; i < header.length; i++) {
-    if (header[i].includes('이유') || header[i].includes('comment')) return i;
-  }
-  return 2;
-}
-
-function parseDate(str: string): string {
-  // "2026. 2. 10 오후 7:21:16" → "2026-02"
-  const match = str.match(/(\d{4})\.\s*(\d{1,2})\./);
-  if (match) return `${match[1]}-${String(match[2]).padStart(2, '0')}`;
-  // "11/29/2024" → "2024-11"
-  const match2 = str.match(/(\d{1,2})\/(\d{1,2})\/(\d{4})/);
-  if (match2) return `${match2[3]}-${String(match2[1]).padStart(2, '0')}`;
+function parseMonth(s: string): string {
+  const m1 = s.match(/(\d{4})\.\s*(\d{1,2})\./);
+  if (m1) return `${m1[1]}-${m1[2].padStart(2, '0')}`;
+  const m2 = s.match(/(\d{1,2})\/(\d{1,2})\/(\d{4})/);
+  if (m2) return `${m2[3]}-${m2[1].padStart(2, '0')}`;
   return '';
 }
 
 function calcNPS(scores: number[]) {
-  if (scores.length === 0) return { nps: 0, promoters: 0, passives: 0, detractors: 0, total: 0 };
-  const promoters = scores.filter(s => s >= 9).length;
-  const passives = scores.filter(s => s >= 7 && s <= 8).length;
-  const detractors = scores.filter(s => s <= 6).length;
-  const total = scores.length;
-  const nps = Math.round(((promoters - detractors) / total) * 100);
-  return { nps, promoters, passives, detractors, total };
+  if (!scores.length) return null;
+  const p = scores.filter(s => s >= 9).length;
+  const pa = scores.filter(s => s >= 7 && s <= 8).length;
+  const d = scores.filter(s => s <= 6).length;
+  const t = scores.length;
+  return { nps: Math.round(((p - d) / t) * 100), promoters: p, passives: pa, detractors: d, total: t };
 }
 
 export async function GET() {
   try {
     const serviceAccount = JSON.parse(process.env.GOOGLE_SERVICE_ACCOUNT_JSON || '{}');
-    const auth = new google.auth.GoogleAuth({
-      credentials: serviceAccount,
-      scopes: ['https://www.googleapis.com/auth/spreadsheets.readonly'],
-    });
+    const auth = new google.auth.GoogleAuth({ credentials: serviceAccount, scopes: ['https://www.googleapis.com/auth/spreadsheets.readonly'] });
     const sheets = google.sheets({ version: 'v4', auth });
 
-    const results = await Promise.all(
-      SHEETS.map(async (s) => {
-        try {
-          const res = await sheets.spreadsheets.values.get({
-            spreadsheetId: s.id,
-            range: `${s.sheet}!A1:E500`,
-          });
-          const rows = (res.data.values || []) as string[][];
-          const dataRows = rows.slice(1); // 헤더 제외
+    const results = await Promise.all(SHEETS.map(async (s) => {
+      try {
+        const res = await sheets.spreadsheets.values.get({ spreadsheetId: s.id, range: `${s.sheet}!A1:F2000` });
+        const rows = (res.data.values || []) as string[][];
+        const dataRows = rows.slice(1);
+        const scoreCol = findScoreCol(rows);
+        const commentCol = rows[0]?.findIndex(h => h.includes('이유') || h.includes('comment')) ?? 2;
 
-          const scoreCol = getScoreColumn(rows);
-          const dateCol = getDateColumn(rows);
-          const commentCol = getCommentColumn(rows);
+        const byMonth: Record<string, number[]> = {};
+        const commentsByMonth: Record<string, { score: number; text: string }[]> = {};
 
-          // 월별 집계
-          const byMonth: Record<string, number[]> = {};
-          const comments: { score: number; text: string; date: string }[] = [];
-
-          for (const row of dataRows) {
-            const scoreStr = row[scoreCol];
-            const score = Number(scoreStr);
-            if (!scoreStr || isNaN(score) || score < 0 || score > 10) continue;
-
-            const dateStr = row[dateCol] || '';
-            const month = parseDate(dateStr);
-            if (month) {
-              if (!byMonth[month]) byMonth[month] = [];
-              byMonth[month].push(score);
-            }
-
-            const comment = (row[commentCol] || '').trim();
-            if (comment && comment.length > 3) {
-              comments.push({ score, text: comment.slice(0, 200), date: month });
-            }
+        for (const row of dataRows) {
+          const scoreStr = row[scoreCol];
+          const score = Number(scoreStr);
+          if (!scoreStr || isNaN(score) || score < 0 || score > 10) continue;
+          const month = parseMonth(row[0] || '');
+          if (!month) continue;
+          if (!byMonth[month]) byMonth[month] = [];
+          byMonth[month].push(Math.round(score));
+          const text = (row[commentCol] || '').trim();
+          if (text.length > 3) {
+            if (!commentsByMonth[month]) commentsByMonth[month] = [];
+            commentsByMonth[month].push({ score: Math.round(score), text: text.slice(0, 200) });
           }
-
-          // 전체 NPS
-          const allScores = dataRows
-            .map(r => Number(r[scoreCol]))
-            .filter(n => !isNaN(n) && n >= 0 && n <= 10);
-          const overall = calcNPS(allScores);
-
-          // 월별 NPS
-          const monthly = Object.entries(byMonth)
-            .sort(([a], [b]) => a.localeCompare(b))
-            .map(([month, scores]) => ({ month, ...calcNPS(scores) }));
-
-          // 최근 코멘트 20개
-          const recentComments = comments.slice(-20).reverse();
-
-          return { ...s, overall, monthly, recentComments, error: null };
-        } catch (e) {
-          return { ...s, overall: null, monthly: [], recentComments: [], error: String(e) };
         }
-      })
-    );
+
+        const allScores = Object.values(byMonth).flat();
+        const overall = calcNPS(allScores);
+
+        const monthly = Object.entries(byMonth)
+          .sort(([a], [b]) => a.localeCompare(b))
+          .map(([month, scores]) => ({ month, ...calcNPS(scores)! }));
+
+        // MoM: 최근 2개월 비교
+        const recentMonths = monthly.slice(-2);
+        const prevMonth = recentMonths[0] || null;
+        const currMonth = recentMonths[1] || null;
+        const mom = (prevMonth && currMonth) ? currMonth.nps - prevMonth.nps : null;
+        const momLabel = prevMonth?.month || null;
+        const currLabel = currMonth?.month || null;
+
+        // 월별 코멘트 (최근 3개월)
+        const recentCommentMonths = Object.keys(commentsByMonth).sort().slice(-3);
+        const detailComments = recentCommentMonths.flatMap(m =>
+          (commentsByMonth[m] || []).map(c => ({ ...c, month: m }))
+        ).slice(-30).reverse();
+
+        return { ...s, overall, monthly, mom, momLabel, currLabel, detailComments, error: null };
+      } catch (e) {
+        return { ...s, overall: null, monthly: [], mom: null, momLabel: null, currLabel: null, detailComments: [], error: String(e) };
+      }
+    }));
 
     return NextResponse.json({ data: results });
   } catch (e) {

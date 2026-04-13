@@ -3,218 +3,258 @@
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 
-interface MonthlyNPS {
-  month: string;
-  nps: number;
-  promoters: number;
-  passives: number;
-  detractors: number;
-  total: number;
-}
-
-interface Comment {
-  score: number;
-  text: string;
-  date: string;
-}
-
+interface MonthlyNPS { month: string; nps: number; promoters: number; passives: number; detractors: number; total: number; }
+interface DetailComment { score: number; text: string; month: string; }
 interface SheetData {
-  label: string;
-  type: string;
-  category: string;
+  label: string; type: string; category: string;
   overall: { nps: number; promoters: number; passives: number; detractors: number; total: number } | null;
   monthly: MonthlyNPS[];
-  recentComments: Comment[];
+  mom: number | null; momLabel: string | null; currLabel: string | null;
+  detailComments: DetailComment[];
   error: string | null;
 }
 
-function NPSScore({ nps }: { nps: number }) {
+function NPSNum({ nps, size = 'md' }: { nps: number; size?: 'sm' | 'md' | 'lg' }) {
   const color = nps >= 50 ? 'text-green-600' : nps >= 20 ? 'text-yellow-600' : nps >= 0 ? 'text-orange-500' : 'text-red-600';
-  return (
-    <div className={`text-4xl font-black ${color}`}>
-      {nps > 0 ? '+' : ''}{nps}
-    </div>
-  );
+  const sz = size === 'lg' ? 'text-5xl' : size === 'md' ? 'text-3xl' : 'text-xl';
+  return <span className={`font-black ${color} ${sz}`}>{nps > 0 ? '+' : ''}{nps}</span>;
 }
 
-function ScoreBadge({ score }: { score: number }) {
-  const color = score >= 9 ? 'bg-green-100 text-green-700' : score >= 7 ? 'bg-yellow-100 text-yellow-700' : 'bg-red-100 text-red-700';
-  return <span className={`${color} text-xs font-bold px-1.5 py-0.5 rounded shrink-0`}>{score}</span>;
+function MoMBadge({ mom }: { mom: number }) {
+  const up = mom > 0;
+  const color = up ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700';
+  return <span className={`${color} text-xs font-bold px-2 py-0.5 rounded-full`}>{up ? '▲' : '▼'} {up ? '+' : ''}{mom} MoM</span>;
 }
 
-function RatioBar({ promoters, passives, detractors, total }: { promoters: number; passives: number; detractors: number; total: number }) {
-  if (total === 0) return null;
+function RatioBar({ p, pa, d, t }: { p: number; pa: number; d: number; t: number }) {
   return (
     <div className="flex h-2 rounded-full overflow-hidden w-full">
-      <div className="bg-green-400" style={{ width: `${(promoters / total) * 100}%` }} />
-      <div className="bg-yellow-300" style={{ width: `${(passives / total) * 100}%` }} />
-      <div className="bg-red-400" style={{ width: `${(detractors / total) * 100}%` }} />
+      <div className="bg-green-400" style={{ width: `${(p / t) * 100}%` }} />
+      <div className="bg-yellow-300" style={{ width: `${(pa / t) * 100}%` }} />
+      <div className="bg-red-400" style={{ width: `${(d / t) * 100}%` }} />
     </div>
   );
 }
 
-function MonthlyChart({ monthly }: { monthly: MonthlyNPS[] }) {
-  if (monthly.length === 0) return null;
+function MonthChart({ monthly }: { monthly: MonthlyNPS[] }) {
   const recent = monthly.slice(-6);
-  const maxTotal = Math.max(...recent.map(m => m.total), 1);
+  if (!recent.length) return null;
+  const maxT = Math.max(...recent.map(m => m.total), 1);
   return (
-    <div>
-      <p className="text-xs text-gray-400 mb-1">월별 NPS 트렌드</p>
-      <div className="flex items-end gap-1 h-20">
-        {recent.map((m) => (
+    <div className="flex items-end gap-1 h-16">
+      {recent.map((m, i) => {
+        const isLast = i === recent.length - 1;
+        return (
           <div key={m.month} className="flex flex-col items-center flex-1 min-w-0">
-            <span className="text-[9px] text-gray-500 mb-0.5 font-medium">{m.nps > 0 ? '+' : ''}{m.nps}</span>
+            <span className={`text-[9px] mb-0.5 font-semibold ${isLast ? 'text-gray-700' : 'text-gray-400'}`}>
+              {m.nps > 0 ? '+' : ''}{m.nps}
+            </span>
             <div className="w-full flex flex-col gap-px">
-              <div className="bg-green-400 rounded-t-sm" style={{ height: `${(m.promoters / maxTotal) * 48}px` }} />
-              <div className="bg-yellow-300" style={{ height: `${(m.passives / maxTotal) * 48}px` }} />
-              <div className="bg-red-400 rounded-b-sm" style={{ height: `${(m.detractors / maxTotal) * 48}px` }} />
+              <div className={`${isLast ? 'bg-green-500' : 'bg-green-200'} rounded-t-sm`} style={{ height: `${(m.promoters / maxT) * 36}px` }} />
+              <div className={`${isLast ? 'bg-yellow-400' : 'bg-yellow-100'}`} style={{ height: `${(m.passives / maxT) * 36}px` }} />
+              <div className={`${isLast ? 'bg-red-500' : 'bg-red-200'} rounded-b-sm`} style={{ height: `${(m.detractors / maxT) * 36}px` }} />
             </div>
             <span className="text-[9px] text-gray-400 mt-0.5">{m.month.slice(5)}월</span>
           </div>
-        ))}
+        );
+      })}
+    </div>
+  );
+}
+
+// 상세 모달
+function DetailModal({ data, onClose }: { data: SheetData; onClose: () => void }) {
+  const o = data.overall;
+  const [filter, setFilter] = useState<'all' | 'promoter' | 'passive' | 'detractor'>('all');
+
+  const filtered = data.detailComments.filter(c => {
+    if (filter === 'promoter') return c.score >= 9;
+    if (filter === 'passive') return c.score >= 7 && c.score <= 8;
+    if (filter === 'detractor') return c.score <= 6;
+    return true;
+  });
+
+  return (
+    <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4" onClick={onClose}>
+      <div className="bg-white rounded-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
+        <div className="sticky top-0 bg-white border-b border-gray-100 px-6 py-4 flex items-center justify-between">
+          <div>
+            <p className="text-xs text-gray-400">{data.type === 'buyer' ? '🛍️ 구매자' : '📦 판매자'} · {data.category === 'market' ? '마켓' : '케어드'}</p>
+            <h2 className="text-lg font-bold text-gray-800">{data.label}</h2>
+          </div>
+          <button onClick={onClose} className="text-gray-400 hover:text-gray-600 text-2xl">×</button>
+        </div>
+
+        <div className="p-6">
+          {/* 전체 NPS */}
+          {o && (
+            <div className="mb-6">
+              <div className="flex items-end gap-4 mb-3">
+                <div>
+                  <p className="text-xs text-gray-400 mb-1">전체 NPS</p>
+                  <NPSNum nps={o.nps} size="lg" />
+                </div>
+                {data.mom !== null && <MoMBadge mom={data.mom} />}
+                <div className="ml-auto text-right">
+                  <p className="text-2xl font-bold text-gray-700">{o.total.toLocaleString()}</p>
+                  <p className="text-xs text-gray-400">총 응답수</p>
+                </div>
+              </div>
+              <RatioBar p={o.promoters} pa={o.passives} d={o.detractors} t={o.total} />
+              <div className="flex justify-between text-xs text-gray-500 mt-1">
+                <span>추천 {o.promoters}명 ({Math.round(o.promoters/o.total*100)}%)</span>
+                <span>중립 {o.passives}명 ({Math.round(o.passives/o.total*100)}%)</span>
+                <span>비추 {o.detractors}명 ({Math.round(o.detractors/o.total*100)}%)</span>
+              </div>
+            </div>
+          )}
+
+          {/* 월별 상세 테이블 */}
+          <div className="mb-6">
+            <p className="text-sm font-semibold text-gray-700 mb-3">월별 NPS 추이</p>
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="text-xs text-gray-400 border-b border-gray-100">
+                    <th className="text-left py-2 pr-4">월</th>
+                    <th className="text-right pr-3">NPS</th>
+                    <th className="text-right pr-3">응답</th>
+                    <th className="text-right pr-3">추천</th>
+                    <th className="text-right pr-3">중립</th>
+                    <th className="text-right pr-3">비추</th>
+                    <th className="text-right">MoM</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {data.monthly.slice(-6).map((m, i, arr) => {
+                    const prev = arr[i - 1];
+                    const mom = prev ? m.nps - prev.nps : null;
+                    const isLatest = i === arr.length - 1;
+                    return (
+                      <tr key={m.month} className={`border-b border-gray-50 ${isLatest ? 'bg-gray-50 font-semibold' : ''}`}>
+                        <td className="py-2 pr-4 text-gray-700">{m.month}</td>
+                        <td className={`text-right pr-3 font-bold ${m.nps >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                          {m.nps > 0 ? '+' : ''}{m.nps}
+                        </td>
+                        <td className="text-right pr-3 text-gray-600">{m.total}</td>
+                        <td className="text-right pr-3 text-green-600">{m.promoters}</td>
+                        <td className="text-right pr-3 text-yellow-600">{m.passives}</td>
+                        <td className="text-right pr-3 text-red-600">{m.detractors}</td>
+                        <td className={`text-right text-xs font-medium ${mom === null ? 'text-gray-300' : mom > 0 ? 'text-green-600' : mom < 0 ? 'text-red-600' : 'text-gray-400'}`}>
+                          {mom === null ? '-' : mom > 0 ? `+${mom}` : mom}
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          {/* 코멘트 */}
+          {data.detailComments.length > 0 && (
+            <div>
+              <p className="text-sm font-semibold text-gray-700 mb-3">최근 응답 코멘트 (최근 3개월)</p>
+              <div className="flex gap-2 mb-3">
+                {([['all', '전체'], ['promoter', '추천 9-10'], ['passive', '중립 7-8'], ['detractor', '비추 0-6']] as const).map(([f, label]) => (
+                  <button key={f} onClick={() => setFilter(f)}
+                    className={`text-xs px-2 py-1 rounded-full transition-colors ${filter === f ? 'bg-gray-800 text-white' : 'bg-gray-100 text-gray-500 hover:bg-gray-200'}`}>
+                    {label}
+                  </button>
+                ))}
+              </div>
+              <div className="space-y-2 max-h-64 overflow-y-auto">
+                {filtered.map((c, i) => {
+                  const scoreColor = c.score >= 9 ? 'bg-green-100 text-green-700' : c.score >= 7 ? 'bg-yellow-100 text-yellow-700' : 'bg-red-100 text-red-700';
+                  return (
+                    <div key={i} className="flex gap-2 text-sm text-gray-600 border-l-2 border-gray-100 pl-3 py-1">
+                      <span className={`${scoreColor} text-xs font-bold px-1.5 py-0.5 rounded h-fit shrink-0`}>{c.score}</span>
+                      <div>
+                        <span className="text-xs text-gray-400 mr-1">{c.month}</span>
+                        {c.text}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+        </div>
       </div>
     </div>
   );
 }
 
 function SegmentCard({ data, accent }: { data: SheetData; accent: string }) {
-  const [showComments, setShowComments] = useState(false);
+  const [open, setOpen] = useState(false);
   const o = data.overall;
-  if (!o) return (
-    <div className="bg-gray-50 rounded-xl p-4 text-sm text-gray-400">
-      {data.label}: {data.error || '데이터 없음'}
-    </div>
-  );
+  if (!o) return null;
 
   return (
-    <div className={`bg-white rounded-xl border-l-4 ${accent} shadow-sm p-4`}>
-      <div className="flex items-start justify-between mb-3">
-        <div>
-          <p className="text-xs text-gray-400">{data.label}</p>
-          <NPSScore nps={o.nps} />
+    <>
+      <div
+        className={`bg-white rounded-xl border-l-4 ${accent} shadow-sm p-4 cursor-pointer hover:shadow-md transition-shadow`}
+        onClick={() => setOpen(true)}
+      >
+        <div className="flex items-start justify-between mb-2">
+          <div>
+            <p className="text-xs text-gray-400">{data.label}</p>
+            <NPSNum nps={o.nps} size="md" />
+          </div>
+          <div className="flex flex-col items-end gap-1">
+            <span className="text-xs text-gray-400">{o.total}건</span>
+            {data.mom !== null && <MoMBadge mom={data.mom} />}
+            <span className="text-xs text-blue-400 mt-1">자세히 →</span>
+          </div>
         </div>
-        <div className="text-right">
-          <p className="text-lg font-bold text-gray-700">{o.total.toLocaleString()}</p>
-          <p className="text-xs text-gray-400">응답수</p>
+
+        <RatioBar p={o.promoters} pa={o.passives} d={o.detractors} t={o.total} />
+        <div className="flex justify-between text-[10px] text-gray-400 mt-1 mb-3">
+          <span>추천 {Math.round(o.promoters/o.total*100)}%</span>
+          <span>중립 {Math.round(o.passives/o.total*100)}%</span>
+          <span>비추 {Math.round(o.detractors/o.total*100)}%</span>
         </div>
+
+        <MonthChart monthly={data.monthly} />
       </div>
 
-      <div className="grid grid-cols-3 gap-2 mb-3 text-center">
-        <div>
-          <div className="text-sm font-bold text-green-600">{o.promoters}</div>
-          <div className="text-[10px] text-gray-400">추천 9-10</div>
-          <div className="text-[10px] text-gray-500">{Math.round((o.promoters/o.total)*100)}%</div>
-        </div>
-        <div>
-          <div className="text-sm font-bold text-yellow-500">{o.passives}</div>
-          <div className="text-[10px] text-gray-400">중립 7-8</div>
-          <div className="text-[10px] text-gray-500">{Math.round((o.passives/o.total)*100)}%</div>
-        </div>
-        <div>
-          <div className="text-sm font-bold text-red-500">{o.detractors}</div>
-          <div className="text-[10px] text-gray-400">비추 0-6</div>
-          <div className="text-[10px] text-gray-500">{Math.round((o.detractors/o.total)*100)}%</div>
-        </div>
-      </div>
-
-      <RatioBar {...o} />
-
-      {data.monthly.length > 0 && (
-        <div className="mt-4">
-          <MonthlyChart monthly={data.monthly} />
-        </div>
-      )}
-
-      {data.recentComments.length > 0 && (
-        <div className="mt-3">
-          <button
-            onClick={() => setShowComments(!showComments)}
-            className="text-xs text-blue-500 hover:underline"
-          >
-            {showComments ? '▲ 코멘트 숨기기' : `▼ 최근 코멘트 (${data.recentComments.length}개)`}
-          </button>
-          {showComments && (
-            <div className="mt-2 space-y-1.5 max-h-48 overflow-y-auto">
-              {data.recentComments.map((c, i) => (
-                <div key={i} className="flex gap-2 text-xs text-gray-600">
-                  <ScoreBadge score={c.score} />
-                  <span className="leading-relaxed">{c.text}</span>
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
-      )}
-    </div>
+      {open && <DetailModal data={data} onClose={() => setOpen(false)} />}
+    </>
   );
 }
 
-function CategorySection({
-  title, emoji, buyer, seller, bgColor
-}: {
-  title: string; emoji: string; buyer: SheetData[]; seller: SheetData[]; bgColor: string;
-}) {
-  // 카테고리 합산 NPS
-  const allBuyerScores = buyer.flatMap(d => {
-    if (!d.overall) return [];
-    const { promoters, detractors, total } = d.overall;
-    return [{ promoters, detractors, total }];
-  });
-  const allSellerScores = seller.flatMap(d => {
-    if (!d.overall) return [];
-    const { promoters, detractors, total } = d.overall;
-    return [{ promoters, detractors, total }];
-  });
-
-  const combineNPS = (arr: { promoters: number; detractors: number; total: number }[]) => {
-    const p = arr.reduce((a, b) => a + b.promoters, 0);
-    const d = arr.reduce((a, b) => a + b.detractors, 0);
-    const t = arr.reduce((a, b) => a + b.total, 0);
+function CategorySection({ title, emoji, buyer, seller, bg }: { title: string; emoji: string; buyer: SheetData[]; seller: SheetData[]; bg: string }) {
+  const combine = (arr: SheetData[]) => {
+    const p = arr.reduce((a, d) => a + (d.overall?.promoters || 0), 0);
+    const d = arr.reduce((a, d) => a + (d.overall?.detractors || 0), 0);
+    const t = arr.reduce((a, d) => a + (d.overall?.total || 0), 0);
     return t > 0 ? Math.round(((p - d) / t) * 100) : 0;
   };
 
-  const buyerNPS = combineNPS(allBuyerScores);
-  const sellerNPS = combineNPS(allSellerScores);
-
   return (
-    <div className={`${bgColor} rounded-2xl p-5 mb-6`}>
+    <div className={`${bg} rounded-2xl p-5 mb-6`}>
       <div className="flex items-center gap-3 mb-4">
         <span className="text-2xl">{emoji}</span>
         <h2 className="text-xl font-bold text-gray-800">{title}</h2>
         <div className="flex gap-3 ml-auto">
           <div className="text-center bg-white/70 rounded-lg px-3 py-1">
-            <div className={`text-lg font-black ${buyerNPS >= 0 ? 'text-green-600' : 'text-red-600'}`}>{buyerNPS > 0 ? '+' : ''}{buyerNPS}</div>
-            <div className="text-[10px] text-gray-500">구매자 NPS</div>
+            <NPSNum nps={combine(buyer)} size="sm" />
+            <div className="text-[10px] text-gray-500">구매자</div>
           </div>
           <div className="text-center bg-white/70 rounded-lg px-3 py-1">
-            <div className={`text-lg font-black ${sellerNPS >= 0 ? 'text-green-600' : 'text-red-600'}`}>{sellerNPS > 0 ? '+' : ''}{sellerNPS}</div>
-            <div className="text-[10px] text-gray-500">판매자 NPS</div>
+            <NPSNum nps={combine(seller)} size="sm" />
+            <div className="text-[10px] text-gray-500">판매자</div>
           </div>
         </div>
       </div>
-
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        {/* 구매자 */}
         <div>
-          <h3 className="text-sm font-semibold text-gray-600 mb-2 flex items-center gap-1">
-            🛍️ 구매자
-          </h3>
-          <div className="space-y-3">
-            {buyer.map((d, i) => (
-              <SegmentCard key={i} data={d} accent="border-blue-400" />
-            ))}
-          </div>
+          <p className="text-xs font-semibold text-gray-500 mb-2">🛍️ 구매자</p>
+          <div className="space-y-3">{buyer.map((d, i) => <SegmentCard key={i} data={d} accent="border-blue-400" />)}</div>
         </div>
-        {/* 판매자 */}
         <div>
-          <h3 className="text-sm font-semibold text-gray-600 mb-2 flex items-center gap-1">
-            📦 판매자
-          </h3>
-          <div className="space-y-3">
-            {seller.map((d, i) => (
-              <SegmentCard key={i} data={d} accent="border-orange-400" />
-            ))}
-          </div>
+          <p className="text-xs font-semibold text-gray-500 mb-2">📦 판매자</p>
+          <div className="space-y-3">{seller.map((d, i) => <SegmentCard key={i} data={d} accent="border-orange-400" />)}</div>
         </div>
       </div>
     </div>
@@ -228,14 +268,11 @@ export default function NPSPage() {
   const [lastUpdated, setLastUpdated] = useState('');
 
   useEffect(() => {
-    fetch('/api/nps')
-      .then(r => r.json())
-      .then(res => {
-        setData(res.data || []);
-        setLastUpdated(new Date().toLocaleString('ko-KR', { timeZone: 'Asia/Seoul' }));
-        setLoading(false);
-      })
-      .catch(() => setLoading(false));
+    fetch('/api/nps').then(r => r.json()).then(res => {
+      setData(res.data || []);
+      setLastUpdated(new Date().toLocaleString('ko-KR', { timeZone: 'Asia/Seoul' }));
+      setLoading(false);
+    }).catch(() => setLoading(false));
   }, []);
 
   const caredBuyer = data.filter(d => d.category === 'cared' && d.type === 'buyer');
@@ -243,21 +280,19 @@ export default function NPSPage() {
   const marketBuyer = data.filter(d => d.category === 'market' && d.type === 'buyer');
   const marketSeller = data.filter(d => d.category === 'market' && d.type === 'seller');
 
-  const totalResponses = data.reduce((a, d) => a + (d.overall?.total || 0), 0);
   const allP = data.reduce((a, d) => a + (d.overall?.promoters || 0), 0);
   const allD = data.reduce((a, d) => a + (d.overall?.detractors || 0), 0);
-  const overallNPS = totalResponses > 0 ? Math.round(((allP - allD) / totalResponses) * 100) : 0;
+  const allT = data.reduce((a, d) => a + (d.overall?.total || 0), 0);
+  const overallNPS = allT > 0 ? Math.round(((allP - allD) / allT) * 100) : 0;
+  const allPa = allT - allP - allD;
 
   return (
     <div className="min-h-screen bg-gray-50">
-      {/* 헤더 */}
       <div className="bg-gradient-to-r from-gray-800 to-gray-900 text-white px-6 py-4">
         <div className="max-w-5xl mx-auto flex items-center gap-4">
-          <button onClick={() => router.push('/')} className="text-white/60 hover:text-white text-sm transition-colors">
-            ← CX 대시보드
-          </button>
+          <button onClick={() => router.push('/')} className="text-white/60 hover:text-white text-sm">← CX 대시보드</button>
           <h1 className="text-lg font-bold">📊 NPS 대시보드</h1>
-          {lastUpdated && <span className="text-xs text-white/40 ml-auto">{lastUpdated} 기준</span>}
+          <span className="text-xs text-white/40 ml-auto">{lastUpdated} 기준</span>
         </div>
       </div>
 
@@ -269,51 +304,30 @@ export default function NPSPage() {
           </div>
         ) : (
           <>
-            {/* 전체 요약 */}
             <div className="grid grid-cols-3 gap-4 mb-6">
               <div className="bg-white rounded-xl border border-gray-200 p-4 text-center shadow-sm">
-                <div className={`text-4xl font-black ${overallNPS >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-                  {overallNPS > 0 ? '+' : ''}{overallNPS}
-                </div>
+                <NPSNum nps={overallNPS} size="lg" />
                 <div className="text-xs text-gray-400 mt-1">전체 평균 NPS</div>
               </div>
               <div className="bg-white rounded-xl border border-gray-200 p-4 text-center shadow-sm">
-                <div className="text-4xl font-black text-gray-800">{totalResponses.toLocaleString()}</div>
+                <div className="text-4xl font-black text-gray-800">{allT.toLocaleString()}</div>
                 <div className="text-xs text-gray-400 mt-1">총 응답수</div>
               </div>
-              <div className="bg-white rounded-xl border border-gray-200 p-4 text-center shadow-sm">
-                <div className="flex justify-center gap-4 mt-1">
-                  <div>
-                    <div className="text-xl font-bold text-green-600">{allP}</div>
-                    <div className="text-[10px] text-gray-400">추천</div>
-                  </div>
-                  <div>
-                    <div className="text-xl font-bold text-red-500">{allD}</div>
-                    <div className="text-[10px] text-gray-400">비추</div>
-                  </div>
+              <div className="bg-white rounded-xl border border-gray-200 p-4 shadow-sm">
+                <RatioBar p={allP} pa={allPa} d={allD} t={allT} />
+                <div className="flex justify-between text-[10px] text-gray-500 mt-2">
+                  <span className="text-green-600">추천 {Math.round(allP/allT*100)}%</span>
+                  <span className="text-yellow-600">중립 {Math.round(allPa/allT*100)}%</span>
+                  <span className="text-red-600">비추 {Math.round(allD/allT*100)}%</span>
                 </div>
-                <RatioBar promoters={allP} passives={totalResponses - allP - allD} detractors={allD} total={totalResponses} />
-                <div className="text-xs text-gray-400 mt-1">전체 분포</div>
+                <div className="text-xs text-gray-400 mt-1 text-center">전체 분포</div>
               </div>
             </div>
 
-            {/* 케어드 섹션 */}
-            <CategorySection
-              title="케어드"
-              emoji="📦"
-              buyer={caredBuyer}
-              seller={caredSeller}
-              bgColor="bg-blue-50"
-            />
+            <p className="text-xs text-gray-400 mb-4">💡 각 세그먼트 카드를 클릭하면 월별 상세 데이터와 코멘트를 볼 수 있어요</p>
 
-            {/* 마켓 섹션 */}
-            <CategorySection
-              title="마켓"
-              emoji="🛒"
-              buyer={marketBuyer}
-              seller={marketSeller}
-              bgColor="bg-orange-50"
-            />
+            <CategorySection title="케어드" emoji="📦" buyer={caredBuyer} seller={caredSeller} bg="bg-blue-50" />
+            <CategorySection title="마켓" emoji="🛒" buyer={marketBuyer} seller={marketSeller} bg="bg-orange-50" />
           </>
         )}
       </div>
