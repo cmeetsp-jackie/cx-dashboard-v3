@@ -8,6 +8,7 @@ interface DetailComment { score: number; text: string; month: string; }
 interface SheetData {
   label: string; type: string; category: string; id: string;
   overall: { nps: number; promoters: number; passives: number; detractors: number; total: number } | null;
+  overallPeriod: string;
   monthly: MonthlyNPS[];
   mom: number | null; momLabel: string | null; currLabel: string | null;
   detailComments: DetailComment[];
@@ -206,6 +207,7 @@ function SegmentCard({ data, accent }: { data: SheetData; accent: string }) {
           <div>
             <p className="text-xs text-gray-400">{data.label}</p>
             <NPSNum nps={o.nps} size="md" />
+            {data.overallPeriod && <p className="text-[10px] text-gray-400 mt-0.5">{data.overallPeriod} 평균</p>}
           </div>
           <div className="flex flex-col items-end gap-1">
             <span className="text-xs text-gray-400">{o.total}건</span>

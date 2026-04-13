@@ -68,8 +68,14 @@ export async function GET() {
           }
         }
 
-        const allScores = Object.values(byMonth).flat();
-        const overall = calcNPS(allScores);
+        // 최근 2개월 평균 NPS (메인 카드에 표시)
+        const sortedMonths = Object.keys(byMonth).sort();
+        const recent2Months = sortedMonths.slice(-2);
+        const recent2Scores = recent2Months.flatMap(m => byMonth[m] || []);
+        const overall = calcNPS(recent2Scores.length ? recent2Scores : Object.values(byMonth).flat());
+        const overallPeriod = recent2Months.length >= 2
+          ? `${recent2Months[0]} ~ ${recent2Months[1]}`
+          : recent2Months[0] || '';
 
         const monthly = Object.entries(byMonth)
           .sort(([a], [b]) => a.localeCompare(b))
@@ -89,7 +95,7 @@ export async function GET() {
           (commentsByMonth[m] || []).map(c => ({ ...c, month: m }))
         ).slice(-30).reverse();
 
-        return { ...s, overall, monthly, mom, momLabel, currLabel, detailComments, error: null };
+        return { ...s, overall, overallPeriod, monthly, mom, momLabel, currLabel, detailComments, error: null };
       } catch (e) {
         return { ...s, overall: null, monthly: [], mom: null, momLabel: null, currLabel: null, detailComments: [], error: String(e) };
       }
