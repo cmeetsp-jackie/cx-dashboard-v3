@@ -36,6 +36,8 @@ function calcNPS(scores: number[]) {
   return { nps: Math.round(((p - d) / t) * 100), promoters: p, passives: pa, detractors: d, total: t };
 }
 
+export const revalidate = 21600; // 6시간
+
 export async function GET() {
   try {
     const serviceAccount = JSON.parse(process.env.GOOGLE_SERVICE_ACCOUNT_JSON || '{}');
