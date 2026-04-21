@@ -280,8 +280,10 @@ async function fetchMarketSellerBuyerInquiries(startDate: string, endDate: strin
   
   // 마켓 조건: 프론트엔드 classifyProduct와 동일하게
   // 프론트엔드: tag.includes('P2P') or tag.includes('마켓') 사용
+  // 단, 태그명에 (차란케어) 또는 (케어)가 포함된 경우는 케어드 이슈이므로 마켓에서 제외
   const marketCondition = `
     arrayExists(x -> position(x, 'P2P') > 0 OR position(x, '마켓') > 0 OR x LIKE '공통/%' OR x LIKE '구매자/%' OR x LIKE '판매자/%', tags)
+    AND NOT arrayExists(x -> position(x, '(차란케어)') > 0 OR position(x, '(케어)') > 0, tags)
   `
   
   const query = `
@@ -342,10 +344,13 @@ async function fetchCaredSellerBuyerInquiries(startDate: string, endDate: string
 }> {
   const auth = Buffer.from(`${CLICKHOUSE_USER}:${CLICKHOUSE_PASSWORD}`).toString('base64')
   
-  // 케어드 조건: 마켓 태그가 없는 것 (프론트엔드 classifyProduct와 동일하게)
+  // 케어드 조건: 마켓 태그가 없거나, 태그명에 (차란케어)/(케어)가 포함된 경우
   // 프론트엔드: tag.includes('P2P') or tag.includes('마켓') 사용
   const caredCondition = `
-    NOT arrayExists(x -> position(x, 'P2P') > 0 OR position(x, '마켓') > 0 OR x LIKE '공통/%' OR x LIKE '구매자/%' OR x LIKE '판매자/%', tags)
+    (
+      NOT arrayExists(x -> position(x, 'P2P') > 0 OR position(x, '마켓') > 0 OR x LIKE '공통/%' OR x LIKE '구매자/%' OR x LIKE '판매자/%', tags)
+      OR arrayExists(x -> position(x, '(차란케어)') > 0 OR position(x, '(케어)') > 0, tags)
+    )
   `
   
   const query = `
