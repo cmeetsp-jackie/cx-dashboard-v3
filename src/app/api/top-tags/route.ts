@@ -8,13 +8,11 @@ const CLICKHOUSE_PASSWORD = process.env.CLICKHOUSE_PASSWORD!
 export const dynamic = 'force-dynamic'
 export const revalidate = 0
 
-// 태그명에 (차란케어) / (케어)가 포함되면 케어드로 재분류
 const MARKET_COND = `
   arrayExists(t -> (
     startsWith(t, '구매자/') OR startsWith(t, '판매자/') OR startsWith(t, '공통/') OR
     position(t, 'P2P') > 0 OR position(t, '마켓') > 0
   ), tags)
-  AND NOT arrayExists(t -> position(t, '(차란케어)') > 0 OR position(t, '(케어)') > 0, tags)
 `
 
 async function queryClickHouse(sql: string) {
