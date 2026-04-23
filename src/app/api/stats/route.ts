@@ -179,12 +179,14 @@ const MANAGERS: Record<string, string> = {
 }
 
 // 1차 해결률 계산 (ClickHouse)
+// 분모: 배정된 건 + 배정 없이 closed된 건 (상담사가 처리한 전체)
+// 분자: closed AND first_replied_at이 KST 19시 이전
 async function fetchFirstResolutionRate(startDate: string, endDate: string): Promise<{ date: string; assigned: number; rate: number }[]> {
   const query = `
     SELECT 
       toDate(toTimeZone(created_at, 'Asia/Seoul')) as date,
-      countIf(assignee_id IS NOT NULL) as assigned,
-      countIf(assignee_id IS NOT NULL AND state = 'closed' AND toHour(toTimeZone(assumeNotNull(first_replied_at), 'Asia/Seoul')) < 19) as resolved_before_19
+      countIf(assignee_id IS NOT NULL OR state = 'closed') as assigned,
+      countIf(state = 'closed' AND first_replied_at IS NOT NULL AND toHour(toTimeZone(assumeNotNull(first_replied_at), 'Asia/Seoul')) < 19) as resolved_before_19
     FROM rawdata_channel_talk.user_chats FINAL 
     WHERE toDate(toTimeZone(created_at, 'Asia/Seoul')) >= '${startDate}' 
       AND toDate(toTimeZone(created_at, 'Asia/Seoul')) <= '${endDate}'
